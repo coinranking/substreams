@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package uniswap.v3.mvp;
+
+message UniswapV3Output {
+  repeated PoolCreated pools_created = 1;
+  repeated TokenInfo tokens = 2;
+  repeated SwapEvent swaps = 3;
+  repeated RollingVolumeData rolling_volumes = 4;
+}
+
+message PoolCreated {
+  string pool_address = 1;
+  string token0 = 2;
+  string token1 = 3;
+  uint32 fee = 4;
+  uint64 block_number = 5;
+  string transaction_hash = 6;
+}
+
+message TokenInfo {
+  string address = 1;
+  string symbol = 2;
+  string name = 3;
+  uint32 decimals = 4;
+}
+
+message SwapEvent {
+  string pool_address = 1;
+  string sender = 2;
+  string recipient = 3;
+  string amount0 = 4;  // Amount of token0 swapped (can be negative)
+  string amount1 = 5;  // Amount of token1 swapped (can be negative)
+  string sqrt_price = 6;  // Square root of price after swap
+  string liquidity = 7;  // Active liquidity at time of swap
+  int32 tick = 8;  // Price tick after swap
+  uint64 block_number = 9;
+  string transaction_hash = 10;
+  uint64 timestamp = 11;
+  uint32 log_ordinal = 12;
+}
+
+message RollingVolumeData {
+  string pool_address = 1;         // Pool address
+  string token0_volume_24h = 2;    // 24-hour rolling volume for token0
+  string token1_volume_24h = 3;    // 24-hour rolling volume for token1
+  uint64 last_update_timestamp = 4; // Timestamp of last update
+  uint64 last_completed_period = 5; // Last fully processed 5-minute period
+  uint32 bucket_count = 6;         // Number of 5-minute buckets included
+}

@@ -1,0 +1,73 @@
+specVersion: v0.1.0
+package:
+  name: 'uniswap_v3_mvp'
+  version: v0.1.0
+
+imports:
+  uniswap: https://github.com/streamingfast/substreams-uniswap-v3/releases/download/v0.2.10/substreams-uniswap-v3-v0.2.10.spkg
+
+protobuf:
+  files:
+    - output.proto
+  importPaths:
+    - ./proto
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: ./target/wasm32-unknown-unknown/release/uniswap_v3_mvp.wasm
+
+modules:
+  # Store to track the last completed 5-minute period for each pool
+  - name: store_completed_periods
+    kind: store
+    # initialBlock: 12369621
+    initialBlock: 22939000
+    updatePolicy: max
+    valueType: int64
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+      - map: uniswap:uni_v0_2_9:map_extract_data_types
+
+  # Store for 5-minute volume buckets (288 buckets for 24 hours)
+  - name: store_minute_volumes
+    kind: store
+    # initialBlock: 12369621
+    initialBlock: 22939000
+    updatePolicy: set
+    valueType: string
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+      - map: uniswap:uni_v0_2_9:map_extract_data_types
+      - store: store_completed_periods
+
+  # Store for 24-hour rolling volumes
+  - name: store_rolling_volumes
+    kind: store
+    # initialBlock: 12369621
+    initialBlock: 22939000
+    updatePolicy: set
+    valueType: string
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+      - map: uniswap:uni_v0_2_9:map_extract_data_types
+      - store: store_completed_periods
+      - store: store_minute_volumes
+
+  - name: map_uniswap_output
+    kind: map
+    # initialBlock: 12369621
+    initialBlock: 12369621
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+      - map: uniswap:uni_v0_2_9:map_pools_created
+      - map: uniswap:uni_v0_2_9:map_extract_data_types
+      - store: uniswap:uni_v0_2_9:store_swaps_volume
+      - store: uniswap:uni_v0_2_9:store_total_tx_counts
+      - store: store_completed_periods
+      - store: store_minute_volumes
+      - store: store_rolling_volumes
+    output:
+      type: proto:uniswap.v3.mvp.UniswapV3Output
+
+network: mainnet
