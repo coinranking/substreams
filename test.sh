@@ -4,10 +4,10 @@ set -e
 
 # Default values
 # Note: Ethereum produces ~7,200 blocks per day (1 block every ~12 seconds)
-# To test with blocks from 24 hours ago, subtract 7,200 from current block number
-# Default: First day of heavy Uniswap V3 activity (May 2021)
-START_BLOCK=22939174  # First USDC/ETH swap on Uniswap V3
-STOP_BLOCK=22939679
+# IMPORTANT: START_BLOCK should match initialBlock in substreams.yaml for testing
+# For production, set initialBlock to START_BLOCK - 7200 (24 hours earlier)
+START_BLOCK=22939174  # Update this to a recent block for testing
+STOP_BLOCK=22939679   # ~500 blocks after START_BLOCK
 OUTPUT_FORMAT="json"
 FILTER_OUTPUT=false
 TOKEN=""
@@ -16,8 +16,8 @@ TOKEN=""
 usage() {
     echo "Usage: $0 [OPTIONS]"
     echo "Options:"
-    echo "  -s, --start-block BLOCK    Start block (default: 12369621)"
-    echo "  -e, --stop-block BLOCK     Stop block (default: 12369631)"
+    echo "  -s, --start-block BLOCK    Start block (default: $START_BLOCK)"
+    echo "  -e, --stop-block BLOCK     Stop block (default: $STOP_BLOCK)"
     echo "  -f, --filter               Filter output to show only blocks with swaps/rolling volumes"
     echo "  -o, --output FORMAT        Output format: json, jsonl, ui (default: json)"
     echo "  -t, --token TOKEN          Authorization token (required if not in env)"

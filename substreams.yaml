@@ -21,8 +21,8 @@ modules:
   # Store to track the last completed 5-minute period for each pool
   - name: store_completed_periods
     kind: store
-    # initialBlock: 12369621
-    initialBlock: 22939000
+    # Set to: current block - 7200 for 24h history, or same as test.sh START_BLOCK for testing
+    initialBlock: &initialBlock 22939000
     updatePolicy: max
     valueType: int64
     inputs:
@@ -32,8 +32,7 @@ modules:
   # Store for 5-minute volume buckets (288 buckets for 24 hours)
   - name: store_minute_volumes
     kind: store
-    # initialBlock: 12369621
-    initialBlock: 22939000
+    initialBlock: *initialBlock
     updatePolicy: set
     valueType: string
     inputs:
@@ -44,8 +43,7 @@ modules:
   # Store for 24-hour rolling volumes
   - name: store_rolling_volumes
     kind: store
-    # initialBlock: 12369621
-    initialBlock: 22939000
+    initialBlock: *initialBlock
     updatePolicy: set
     valueType: string
     inputs:
@@ -56,8 +54,7 @@ modules:
 
   - name: map_uniswap_output
     kind: map
-    # initialBlock: 12369621
-    initialBlock: 12369621
+    initialBlock: *initialBlock
     inputs:
       - source: sf.ethereum.type.v2.Block
       - map: uniswap:uni_v0_2_9:map_pools_created
