@@ -8,8 +8,10 @@ imports:
 
 protobuf:
   files:
+    - dex_common.proto
     - output.proto
   importPaths:
+    - ../../proto
     - ./proto
 
 binaries:
@@ -65,6 +67,6 @@ modules:
       - store: store_minute_volumes
       - store: store_rolling_volumes
     output:
-      type: proto:uniswap.v3.mvp.UniswapV3Output
+      type: proto:uniswap.v3.mvp.UniswapV3Output  # TODO: Migrate to proto:dex.common.v1.DexOutput
 
 network: mainnet

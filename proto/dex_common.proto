@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package dex.common.v1;
+
+// Main output message for any DEX
+message DexOutput {
+  DexInfo dex_info = 1;
+  repeated PoolCreated pools_created = 2;
+  repeated TokenInfo tokens = 3;
+  repeated SwapEvent swaps = 4;
+  repeated RollingVolumeData rolling_volumes = 5;
+}
+
+// Information about which DEX this data is from
+message DexInfo {
+  string protocol = 1;    // "uniswap", "pancakeswap", "sushiswap", etc.
+  string version = 2;     // "v2", "v3", etc.
+  string chain = 3;       // "ethereum", "bsc", "polygon", etc.
+  uint64 block_number = 4;
+}
+
+// Pool/Pair creation event
+message PoolCreated {
+  string pool_address = 1;
+  string token0 = 2;
+  string token1 = 3;
+  uint32 fee = 4;          // For V3 DEXes, V2 can use 0 or fixed value
+  uint64 block_number = 5;
+  string transaction_hash = 6;
+  string factory_address = 7;  // Added to identify which factory
+}
+
+// Token information
+message TokenInfo {
+  string address = 1;
+  string symbol = 2;
+  string name = 3;
+  uint32 decimals = 4;
+}
+
+// Swap/Trade event
+message SwapEvent {
+  string pool_address = 1;
+  string sender = 2;
+  string recipient = 3;
+  string amount0 = 4;       // Amount of token0 swapped (can be negative)
+  string amount1 = 5;       // Amount of token1 swapped (can be negative)
+  uint64 block_number = 6;
+  string transaction_hash = 7;
+  uint64 timestamp = 8;
+  uint32 log_ordinal = 9;
+  
+  // V3-specific fields (optional for V2 DEXes)
+  optional string sqrt_price = 10;  // Square root of price after swap
+  optional string liquidity = 11;   // Active liquidity at time of swap
+  optional int32 tick = 12;         // Price tick after swap
+}
+
+// 24-hour rolling volume data
+message RollingVolumeData {
+  string pool_address = 1;         // Pool address
+  string token0_volume_24h = 2;    // 24-hour rolling volume for token0
+  string token1_volume_24h = 3;    // 24-hour rolling volume for token1
+  uint64 last_update_timestamp = 4; // Timestamp of last update
+  uint64 last_completed_period = 5; // Last fully processed 5-minute period
+  uint32 bucket_count = 6;         // Number of 5-minute buckets included
+}
