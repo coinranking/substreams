@@ -14,6 +14,10 @@ use substreams_ethereum::pb::eth::v2 as eth;
 // Uniswap V3 constants
 const UNISWAP_V3_FACTORY: &str = "0x1F98431c8aD98523631AE4a59f267346ea31F984";
 
+// Time period configuration for volume tracking
+const BUCKET_DURATION_SECONDS: u64 = 300; // 5 minutes per bucket
+const BUCKETS_PER_DAY: u64 = 288; // 24 hours / 5 minutes = 288 buckets
+
 struct PoolAggregator {
     token0_volume: String,
     token1_volume: String,
@@ -75,7 +79,7 @@ fn map_uniswap_ticker_output(
     _swaps_volume: StoreGetBigDecimal,
     _total_tx_counts: StoreGetBigInt,
     _completed_periods: StoreGetInt64,
-    _minute_volumes: StoreGetString,
+    _period_volumes: StoreGetString,
     rolling_volumes: StoreGetString,
 ) -> Result<DexOutput, substreams::errors::Error> {
     let mut output = DexOutput {
@@ -204,7 +208,7 @@ fn store_completed_periods(block: eth::Block, events: Events, output: StoreMaxIn
         .as_ref()
         .map(|h| h.timestamp.as_ref().map(|t| t.seconds).unwrap_or(0))
         .unwrap_or(0);
-    let current_period = (block_timestamp / 300) as i64; // 300 seconds = 5 minutes
+    let current_period = (block_timestamp as u64) / BUCKET_DURATION_SECONDS;
 
     // Track which pools had swaps in this block
     let mut pools_with_swaps = std::collections::HashSet::new();
@@ -218,17 +222,17 @@ fn store_completed_periods(block: eth::Block, events: Events, output: StoreMaxIn
     // Update last completed 5-minute period for pools with activity
     // Using max policy ensures we don't go backwards
     for pool_address in pools_with_swaps {
-        output.max(0, &pool_address, current_period);
+        output.max(0, &pool_address, current_period as i64);
     }
 }
 
-/// Store handler that accumulates swap volumes into 5-minute buckets.
-/// Each pool has 288 buckets for a 24-hour circular buffer.
+/// Store handler that accumulates swap volumes into period buckets.
+/// Each pool has BUCKETS_PER_DAY buckets for a 24-hour circular buffer.
 #[substreams::handlers::store]
-fn store_minute_volumes(
+fn store_period_volumes(
     block: eth::Block,
     events: Events,
-    _completed_periods: StoreGetInt64,
+    period_volumes: StoreGetString,
     store: StoreSetString,
 ) {
     let block_timestamp = block
@@ -236,7 +240,7 @@ fn store_minute_volumes(
         .as_ref()
         .map(|h| h.timestamp.as_ref().map(|t| t.seconds).unwrap_or(0))
         .unwrap_or(0);
-    let current_period = block_timestamp / 300; // 5-minute periods
+    let current_period = (block_timestamp as u64) / BUCKET_DURATION_SECONDS;
 
     // Accumulate all swaps in this block by pool
     let mut pool_volumes: HashMap<String, VolumeAccumulator> = HashMap::new();
@@ -250,39 +254,74 @@ fn store_minute_volumes(
         }
     }
 
-    // Store volumes in the current period's bucket
+    // Process volumes for each pool
     for (pool_address, accumulator) in pool_volumes {
-        let bucket_idx = current_period % 288;
+        let bucket_idx = current_period % BUCKETS_PER_DAY;
         let bucket_key = format!("{pool_address}:bucket:{bucket_idx}");
-        let bucket_value = format!(
-            "{},{}",
-            accumulator.token0_volume, accumulator.token1_volume
-        );
+        let period_key = format!("{pool_address}:bucket:{bucket_idx}:period");
+
+        // Check if this bucket belongs to an old period (needs reset)
+        let existing_period = period_volumes.get_last(&period_key);
+        let needs_reset = if let Some(period_str) = existing_period {
+            if let Ok(last_period) = period_str.parse::<u64>() {
+                current_period - last_period >= BUCKETS_PER_DAY
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        // Get existing volumes or start fresh
+        let (mut total_token0, mut total_token1) = if needs_reset {
+            substreams::log::debug!(
+                "Reset bucket {} for pool {} (new period {})",
+                bucket_idx,
+                pool_address,
+                current_period
+            );
+            ("0".to_string(), "0".to_string())
+        } else {
+            // Get existing volumes from same period
+            let existing = period_volumes
+                .get_last(&bucket_key)
+                .unwrap_or_else(|| "0,0".to_string());
+            let parts: Vec<&str> = existing.split(',').collect();
+            (
+                parts.first().unwrap_or(&"0").to_string(),
+                parts.get(1).unwrap_or(&"0").to_string(),
+            )
+        };
+
+        // Add new volumes
+        total_token0 = add_strings(&total_token0, &accumulator.token0_volume);
+        total_token1 = add_strings(&total_token1, &accumulator.token1_volume);
+
+        // Store updated volumes
+        let bucket_value = format!("{},{}", total_token0, total_token1);
+        store.set(0, &bucket_key, &bucket_value);
+
+        // Update period metadata
+        store.set(0, &period_key, &current_period.to_string());
 
         substreams::log::debug!(
-            "Storing volume for pool {} in bucket {} (period {}): {}",
+            "Updated volume for pool {} in bucket {} (period {}): {}",
             pool_address,
             bucket_idx,
             current_period,
             bucket_value
         );
-
-        store.set(0, &bucket_key, &bucket_value);
-
-        // Store which period this bucket represents
-        let period_key = format!("{pool_address}:bucket:{bucket_idx}:period");
-        store.set(0, &period_key, &current_period.to_string());
     }
 }
 
 /// Store handler that maintains 24-hour rolling volumes for each pool.
-/// Updates when 5-minute period boundaries are crossed by summing all bucket values.
+/// Updates by summing all bucket values within the 24-hour window.
 #[substreams::handlers::store]
 fn store_rolling_volumes(
     block: eth::Block,
     events: Events,
-    completed_periods: StoreGetInt64,
-    minute_volumes: StoreGetString,
+    _completed_periods: StoreGetInt64,
+    period_volumes: StoreGetString,
     store: StoreSetString,
 ) {
     let block_timestamp = block
@@ -290,7 +329,7 @@ fn store_rolling_volumes(
         .as_ref()
         .map(|h| h.timestamp.as_ref().map(|t| t.seconds).unwrap_or(0))
         .unwrap_or(0);
-    let current_period = block_timestamp / 300; // 5-minute periods
+    let current_period = (block_timestamp as u64) / BUCKET_DURATION_SECONDS;
 
     // Track pools with activity to update their rolling volumes
     let mut active_pools = std::collections::HashSet::new();
@@ -303,8 +342,6 @@ fn store_rolling_volumes(
 
     // Update rolling volumes for active pools
     for pool_address in active_pools {
-        let _last_completed = completed_periods.get_last(&pool_address).unwrap_or(0);
-
         // Always recalculate rolling volume from all buckets
         let rolling_key = format!("{pool_address}:rolling");
 
@@ -313,18 +350,19 @@ fn store_rolling_volumes(
         let mut total_token1 = "0".to_string();
 
         // Check each bucket to see if it's within the last 24 hours
-        for bucket_idx in 0..288 {
+        for bucket_idx in 0..BUCKETS_PER_DAY {
             let bucket_key = format!("{pool_address}:bucket:{bucket_idx}");
             let period_key = format!("{pool_address}:bucket:{bucket_idx}:period");
 
             // Get the period when this bucket was last updated
-            if let Some(bucket_period_str) = minute_volumes.get_last(&period_key) {
-                if let Ok(bucket_period) = bucket_period_str.parse::<u64>() {
-                    // Only include if within last 24 hours (288 periods)
-                    if current_period as u64 >= bucket_period
-                        && (current_period as u64).saturating_sub(bucket_period) < 288
+            if let Some(period_str) = period_volumes.get_last(&period_key) {
+                if let Ok(bucket_period) = period_str.parse::<u64>() {
+                    // Only include if within last 24 hours
+                    if current_period >= bucket_period
+                        && current_period.saturating_sub(bucket_period) < BUCKETS_PER_DAY
                     {
-                        let bucket_value = minute_volumes
+                        // Get volumes from the bucket
+                        let bucket_value = period_volumes
                             .get_last(&bucket_key)
                             .unwrap_or_else(|| "0,0".to_string());
                         let parts: Vec<&str> = bucket_value.split(',').collect();
@@ -336,7 +374,8 @@ fn store_rolling_volumes(
             }
         }
 
-        let new_rolling_value = format!("{total_token0},{total_token1}");
+        let new_rolling_value = format!("{},{}", total_token0, total_token1);
+
         substreams::log::debug!(
             "Updating rolling volume for pool {}: {}",
             pool_address,
