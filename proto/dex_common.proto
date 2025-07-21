@@ -15,6 +15,7 @@ message DexInfo {
   string version = 2;     // "v2", "v3", etc.
   string chain = 3;       // "ethereum", "bsc", "polygon", etc.
   uint64 block_number = 4;
+  string factory_address = 5;  // Factory contract address for this DEX
 }
 
 // Pool/Pair creation event
@@ -25,7 +26,6 @@ message PoolCreated {
   uint32 fee = 4;          // For V3 DEXes, V2 can use 0 or fixed value
   uint64 block_number = 5;
   string transaction_hash = 6;
-  string factory_address = 7;  // Added to identify which factory
 }
 
 // Pool ticker data - aggregated activity per pool per block

@@ -11,6 +11,9 @@ use substreams::store::{
 };
 use substreams_ethereum::pb::eth::v2 as eth;
 
+// Uniswap V3 constants
+const UNISWAP_V3_FACTORY: &str = "0x1F98431c8aD98523631AE4a59f267346ea31F984";
+
 struct PoolAggregator {
     token0_volume: String,
     token1_volume: String,
@@ -81,6 +84,7 @@ fn map_uniswap_ticker_output(
             version: "v3".to_string(),
             chain: "ethereum".to_string(),
             block_number: block.number,
+            factory_address: UNISWAP_V3_FACTORY.to_string(),
         }),
         pools_created: vec![],
         tickers: vec![],
@@ -109,7 +113,6 @@ fn map_uniswap_ticker_output(
             fee: pool.fee_tier.parse::<u32>().unwrap_or_default(),
             block_number: block.number,
             transaction_hash: pool.transaction_id.clone(),
-            factory_address: String::new(), // TODO: Add Uniswap V3 factory address
         };
 
         output.pools_created.push(pool_created);
