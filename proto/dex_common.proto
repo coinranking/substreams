@@ -50,5 +50,4 @@ message PoolTicker {
   // Metadata
   uint64 block_number = 10;
   uint64 timestamp = 11;
-  uint32 fee_tier = 12;      // Pool fee tier (e.g., 3000 = 0.3%)
 }

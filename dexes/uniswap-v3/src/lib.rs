@@ -18,11 +18,10 @@ struct PoolAggregator {
     token1_volume: String,
     swap_count: u32,
     last_sqrt_price: String,
-    fee_tier: u32,
 }
 
 impl PoolAggregator {
-    fn new(token0: String, token1: String, fee: u32) -> Self {
+    fn new(token0: String, token1: String) -> Self {
         Self {
             token0_address: token0,
             token1_address: token1,
@@ -30,7 +29,6 @@ impl PoolAggregator {
             token1_volume: "0".to_string(),
             swap_count: 0,
             last_sqrt_price: "0".to_string(),
-            fee_tier: fee,
         }
     }
 
@@ -99,7 +97,7 @@ fn map_uniswap_ticker_output(
         .unwrap_or(0);
 
     // Track pool metadata
-    let mut pool_metadata: HashMap<String, (String, String, u32)> = HashMap::new();
+    let mut pool_metadata: HashMap<String, (String, String)> = HashMap::new();
 
     // Process pool creation events
     for pool in pools_created.pools {
@@ -124,11 +122,7 @@ fn map_uniswap_ticker_output(
         // Store metadata
         pool_metadata.insert(
             pool.address.clone(),
-            (
-                pool_created.token0.clone(),
-                pool_created.token1.clone(),
-                pool_created.fee,
-            ),
+            (pool_created.token0.clone(), pool_created.token1.clone()),
         );
 
         output.pools_created.push(pool_created);
@@ -146,12 +140,12 @@ fn map_uniswap_ticker_output(
                 .entry(pool_address.clone())
                 .or_insert_with(|| {
                     // Try to get metadata from created pools or use defaults
-                    let (token0, token1, fee) =
+                    let (token0, token1) =
                         pool_metadata.get(pool_address).cloned().unwrap_or_else(|| {
                             // TODO: In production, fetch from pool store
-                            (String::new(), String::new(), 3000)
+                            (String::new(), String::new())
                         });
-                    PoolAggregator::new(token0, token1, fee)
+                    PoolAggregator::new(token0, token1)
                 });
 
             aggregator.add_swap(&swap.amount_0, &swap.amount_1, &swap.sqrt_price);
@@ -182,7 +176,6 @@ fn map_uniswap_ticker_output(
             volume_24h_token1: rolling_parts.get(1).unwrap_or(&"0").to_string(),
             block_number: block.number,
             timestamp: block_timestamp as u64,
-            fee_tier: aggregator.fee_tier,
         };
 
         output.tickers.push(ticker);
