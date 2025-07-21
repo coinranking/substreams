@@ -12,8 +12,6 @@ use substreams::store::{
 use substreams_ethereum::pb::eth::v2 as eth;
 
 struct PoolAggregator {
-    token0_address: String,
-    token1_address: String,
     token0_volume: String,
     token1_volume: String,
     swap_count: u32,
@@ -21,10 +19,8 @@ struct PoolAggregator {
 }
 
 impl PoolAggregator {
-    fn new(token0: String, token1: String) -> Self {
+    fn new() -> Self {
         Self {
-            token0_address: token0,
-            token1_address: token1,
             token0_volume: "0".to_string(),
             token1_volume: "0".to_string(),
             swap_count: 0,
@@ -96,9 +92,6 @@ fn map_uniswap_ticker_output(
         .map(|h| h.timestamp.as_ref().map(|t| t.seconds).unwrap_or(0))
         .unwrap_or(0);
 
-    // Track pool metadata
-    let mut pool_metadata: HashMap<String, (String, String)> = HashMap::new();
-
     // Process pool creation events
     for pool in pools_created.pools {
         let pool_created = PoolCreated {
@@ -119,12 +112,6 @@ fn map_uniswap_ticker_output(
             factory_address: String::new(), // TODO: Add Uniswap V3 factory address
         };
 
-        // Store metadata
-        pool_metadata.insert(
-            pool.address.clone(),
-            (pool_created.token0.clone(), pool_created.token1.clone()),
-        );
-
         output.pools_created.push(pool_created);
     }
 
@@ -138,15 +125,7 @@ fn map_uniswap_ticker_output(
             // Get or create aggregator
             let aggregator = pool_aggregators
                 .entry(pool_address.clone())
-                .or_insert_with(|| {
-                    // Try to get metadata from created pools or use defaults
-                    let (token0, token1) =
-                        pool_metadata.get(pool_address).cloned().unwrap_or_else(|| {
-                            // TODO: In production, fetch from pool store
-                            (String::new(), String::new())
-                        });
-                    PoolAggregator::new(token0, token1)
-                });
+                .or_insert_with(PoolAggregator::new);
 
             aggregator.add_swap(&swap.amount_0, &swap.amount_1, &swap.sqrt_price);
         }
@@ -166,8 +145,6 @@ fn map_uniswap_ticker_output(
 
         let ticker = PoolTicker {
             pool_address: pool_address.clone(),
-            token0_address: aggregator.token0_address,
-            token1_address: aggregator.token1_address,
             volume_token0: aggregator.token0_volume,
             volume_token1: aggregator.token1_volume,
             swap_count: aggregator.swap_count,

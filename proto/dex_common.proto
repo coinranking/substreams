@@ -32,22 +32,20 @@ message PoolCreated {
 message PoolTicker {
   // Pool identification
   string pool_address = 1;
-  string token0_address = 2;
-  string token1_address = 3;
   
   // Block-level volume aggregates (sum of all swaps in this block)
-  string volume_token0 = 4;  // Total token0 volume in this block
-  string volume_token1 = 5;  // Total token1 volume in this block
-  uint32 swap_count = 6;     // Number of swaps in this block
+  string volume_token0 = 2;  // Total token0 volume in this block
+  string volume_token1 = 3;  // Total token1 volume in this block
+  uint32 swap_count = 4;     // Number of swaps in this block
   
   // Price data (token0 per token1)
-  string close_price = 7;    // Final price in this block
+  string close_price = 5;    // Final price in this block
   
   // 24-hour rolling volumes
-  string volume_24h_token0 = 8;
-  string volume_24h_token1 = 9;
+  string volume_24h_token0 = 6;
+  string volume_24h_token1 = 7;
   
   // Metadata
-  uint64 block_number = 10;
-  uint64 timestamp = 11;
+  uint64 block_number = 8;
+  uint64 timestamp = 9;
 }
