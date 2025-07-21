@@ -11,8 +11,7 @@ Key messages:
 - `DexOutput`: Main output containing all data
 - `DexInfo`: Identifies which DEX/chain/version
 - `PoolCreated`: Pool/pair creation events
-- `SwapEvent`: Individual trades
-- `RollingVolumeData`: 24-hour volume aggregates
+- `PoolTicker`: Aggregated trading data per pool per block (volumes, price, 24h volumes)
 
 ## Usage
 

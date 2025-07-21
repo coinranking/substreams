@@ -1,8 +1,8 @@
 mod pb;
 
+use pb::dex::common::v1::{DexInfo, DexOutput, PoolCreated, PoolTicker};
 use pb::uniswap::types::v1::events::pool_event;
 use pb::uniswap::types::v1::{Events, Pools};
-use pb::uniswap::v3::mvp::{PoolCreated, RollingVolumeData, SwapEvent, TokenInfo, UniswapV3Output};
 use std::collections::HashMap;
 use substreams::prelude::StoreGetString;
 use substreams::store::{
@@ -11,6 +11,194 @@ use substreams::store::{
 };
 use substreams_ethereum::pb::eth::v2 as eth;
 
+struct PoolAggregator {
+    token0_address: String,
+    token1_address: String,
+    token0_volume: String,
+    token1_volume: String,
+    swap_count: u32,
+    last_sqrt_price: String,
+    fee_tier: u32,
+}
+
+impl PoolAggregator {
+    fn new(token0: String, token1: String, fee: u32) -> Self {
+        Self {
+            token0_address: token0,
+            token1_address: token1,
+            token0_volume: "0".to_string(),
+            token1_volume: "0".to_string(),
+            swap_count: 0,
+            last_sqrt_price: "0".to_string(),
+            fee_tier: fee,
+        }
+    }
+
+    fn add_swap(&mut self, amount0: &str, amount1: &str, sqrt_price: &str) {
+        // Convert to absolute values and add
+        let abs_amount0 = amount0.trim_start_matches('-');
+        let abs_amount1 = amount1.trim_start_matches('-');
+
+        self.token0_volume = add_strings(&self.token0_volume, abs_amount0);
+        self.token1_volume = add_strings(&self.token1_volume, abs_amount1);
+        self.swap_count += 1;
+        self.last_sqrt_price = sqrt_price.to_string();
+    }
+
+    fn sqrt_price_to_price(&self) -> String {
+        // Convert sqrt_price to regular price
+        // For now, return a simplified calculation
+        // In production, use proper BigDecimal math
+        if self.last_sqrt_price == "0" {
+            return "0".to_string();
+        }
+
+        // sqrt_price is Q64.96, so price = (sqrt_price / 2^96)^2
+        // This is a simplified version
+        let sqrt_val = self.last_sqrt_price.parse::<f64>().unwrap_or(0.0);
+        let divisor = (2_f64).powf(96.0);
+        let normalized = sqrt_val / divisor;
+        let price = normalized * normalized;
+
+        format!("{:.18}", price)
+    }
+}
+
+// Simple string addition for demo - in production use proper BigDecimal
+fn add_strings(a: &str, b: &str) -> String {
+    (a.parse::<f64>().unwrap_or(0.0) + b.parse::<f64>().unwrap_or(0.0)).to_string()
+}
+
+/// Main map handler that processes Uniswap V3 events and outputs tickers
+#[substreams::handlers::map]
+fn map_uniswap_ticker_output(
+    block: eth::Block,
+    pools_created: Pools,
+    events: Events,
+    _swaps_volume: StoreGetBigDecimal,
+    _total_tx_counts: StoreGetBigInt,
+    _completed_periods: StoreGetInt64,
+    _minute_volumes: StoreGetString,
+    rolling_volumes: StoreGetString,
+) -> Result<DexOutput, substreams::errors::Error> {
+    let mut output = DexOutput {
+        dex_info: Some(DexInfo {
+            protocol: "uniswap".to_string(),
+            version: "v3".to_string(),
+            chain: "ethereum".to_string(),
+            block_number: block.number,
+        }),
+        pools_created: vec![],
+        tickers: vec![],
+    };
+
+    let block_timestamp = block
+        .header
+        .as_ref()
+        .map(|h| h.timestamp.as_ref().map(|t| t.seconds).unwrap_or(0))
+        .unwrap_or(0);
+
+    // Track pool metadata
+    let mut pool_metadata: HashMap<String, (String, String, u32)> = HashMap::new();
+
+    // Process pool creation events
+    for pool in pools_created.pools {
+        let pool_created = PoolCreated {
+            pool_address: pool.address.clone(),
+            token0: pool
+                .token0
+                .as_ref()
+                .map(|t| t.address.clone())
+                .unwrap_or_default(),
+            token1: pool
+                .token1
+                .as_ref()
+                .map(|t| t.address.clone())
+                .unwrap_or_default(),
+            fee: pool.fee_tier.parse::<u32>().unwrap_or_default(),
+            block_number: block.number,
+            transaction_hash: pool.transaction_id.clone(),
+            factory_address: String::new(), // TODO: Add Uniswap V3 factory address
+        };
+
+        // Store metadata
+        pool_metadata.insert(
+            pool.address.clone(),
+            (
+                pool_created.token0.clone(),
+                pool_created.token1.clone(),
+                pool_created.fee,
+            ),
+        );
+
+        output.pools_created.push(pool_created);
+    }
+
+    // Aggregate swaps by pool
+    let mut pool_aggregators: HashMap<String, PoolAggregator> = HashMap::new();
+
+    for pool_event in events.pool_events {
+        if let Some(pool_event::Type::Swap(swap)) = pool_event.r#type {
+            let pool_address = &pool_event.pool_address;
+
+            // Get or create aggregator
+            let aggregator = pool_aggregators
+                .entry(pool_address.clone())
+                .or_insert_with(|| {
+                    // Try to get metadata from created pools or use defaults
+                    let (token0, token1, fee) =
+                        pool_metadata.get(pool_address).cloned().unwrap_or_else(|| {
+                            // TODO: In production, fetch from pool store
+                            (String::new(), String::new(), 3000)
+                        });
+                    PoolAggregator::new(token0, token1, fee)
+                });
+
+            aggregator.add_swap(&swap.amount_0, &swap.amount_1, &swap.sqrt_price);
+        }
+    }
+
+    // Create tickers for pools with activity
+    for (pool_address, aggregator) in pool_aggregators {
+        // Get 24h rolling volume
+        let rolling_key = format!("{pool_address}:rolling");
+        let rolling_data = rolling_volumes
+            .get_last(&rolling_key)
+            .unwrap_or_else(|| "0,0".to_string());
+        let rolling_parts: Vec<&str> = rolling_data.split(',').collect();
+
+        // Calculate price before moving values from aggregator
+        let close_price = aggregator.sqrt_price_to_price();
+
+        let ticker = PoolTicker {
+            pool_address: pool_address.clone(),
+            token0_address: aggregator.token0_address,
+            token1_address: aggregator.token1_address,
+            volume_token0: aggregator.token0_volume,
+            volume_token1: aggregator.token1_volume,
+            swap_count: aggregator.swap_count,
+            close_price,
+            volume_24h_token0: rolling_parts.first().unwrap_or(&"0").to_string(),
+            volume_24h_token1: rolling_parts.get(1).unwrap_or(&"0").to_string(),
+            block_number: block.number,
+            timestamp: block_timestamp as u64,
+            fee_tier: aggregator.fee_tier,
+        };
+
+        output.tickers.push(ticker);
+    }
+
+    substreams::log::info!(
+        "Block {}: {} pools created, {} tickers",
+        block.number,
+        output.pools_created.len(),
+        output.tickers.len()
+    );
+
+    Ok(output)
+}
+
+// The original VolumeAccumulator for store handlers
 struct VolumeAccumulator {
     token0_volume: String,
     token1_volume: String,
@@ -32,174 +220,6 @@ impl VolumeAccumulator {
         self.token0_volume = add_strings(&self.token0_volume, abs_amount0);
         self.token1_volume = add_strings(&self.token1_volume, abs_amount1);
     }
-}
-
-// Simple string addition for demo - in production use proper BigDecimal
-fn add_strings(a: &str, b: &str) -> String {
-    (a.parse::<f64>().unwrap_or(0.0) + b.parse::<f64>().unwrap_or(0.0)).to_string()
-}
-
-/// Main map handler that processes Uniswap V3 events and outputs pool creations,
-/// swaps, and 24-hour rolling volumes.
-#[substreams::handlers::map]
-fn map_uniswap_output(
-    block: eth::Block,
-    pools_created: Pools,
-    events: Events,
-    _swaps_volume: StoreGetBigDecimal,
-    _total_tx_counts: StoreGetBigInt,
-    completed_periods: StoreGetInt64,
-    _minute_volumes: StoreGetString,
-    rolling_volumes: StoreGetString,
-) -> Result<UniswapV3Output, substreams::errors::Error> {
-    let mut output = UniswapV3Output {
-        pools_created: vec![],
-        tokens: vec![],
-        swaps: vec![],
-        rolling_volumes: vec![],
-    };
-
-    // Process actual Uniswap pool creation events
-    for pool in pools_created.pools {
-        let pool_created = PoolCreated {
-            pool_address: pool.address.clone(),
-            token0: pool
-                .token0
-                .as_ref()
-                .map(|t| t.address.clone())
-                .unwrap_or_default(),
-            token1: pool
-                .token1
-                .as_ref()
-                .map(|t| t.address.clone())
-                .unwrap_or_default(),
-            fee: pool.fee_tier.parse::<u32>().unwrap_or_default(),
-            block_number: block.number,
-            transaction_hash: pool.transaction_id.clone(),
-        };
-
-        output.pools_created.push(pool_created);
-
-        // Add token information if available
-        if let Some(token0) = &pool.token0 {
-            let token_info = TokenInfo {
-                address: token0.address.clone(),
-                symbol: token0.symbol.clone(),
-                name: token0.name.clone(),
-                decimals: token0.decimals as u32,
-            };
-            output.tokens.push(token_info);
-        }
-
-        if let Some(token1) = &pool.token1 {
-            let token_info = TokenInfo {
-                address: token1.address.clone(),
-                symbol: token1.symbol.clone(),
-                name: token1.name.clone(),
-                decimals: token1.decimals as u32,
-            };
-            output.tokens.push(token_info);
-        }
-    }
-
-    // Process swap events
-    for pool_event in &events.pool_events {
-        if let Some(pool_event::Type::Swap(swap)) = &pool_event.r#type {
-            let swap_event = SwapEvent {
-                pool_address: pool_event.pool_address.clone(),
-                sender: swap.sender.clone(),
-                recipient: swap.recipient.clone(),
-                amount0: swap.amount_0.clone(),
-                amount1: swap.amount_1.clone(),
-                sqrt_price: swap.sqrt_price.clone(),
-                liquidity: swap.liquidity.clone(),
-                tick: swap.tick.parse::<i32>().unwrap_or_default(),
-                block_number: block.number,
-                transaction_hash: pool_event.transaction_id.clone(),
-                timestamp: pool_event.timestamp,
-                log_ordinal: pool_event.log_ordinal as u32,
-            };
-
-            output.swaps.push(swap_event);
-        }
-    }
-
-    // Accumulate volumes per pool for this block
-    let mut pool_volumes: HashMap<String, VolumeAccumulator> = HashMap::new();
-
-    for swap in &output.swaps {
-        let accumulator = pool_volumes
-            .entry(swap.pool_address.clone())
-            .or_insert_with(VolumeAccumulator::new);
-        accumulator.add_swap(&swap.amount0, &swap.amount1);
-    }
-
-    // Get rolling volumes for all pools that have them
-    let block_timestamp = block
-        .header
-        .as_ref()
-        .map(|h| h.timestamp.as_ref().map(|t| t.seconds).unwrap_or(0))
-        .unwrap_or(0);
-
-    // Check all pools with swaps for rolling volume data
-    let mut checked_pools = std::collections::HashSet::new();
-
-    for pool_event in &events.pool_events {
-        if let Some(pool_event::Type::Swap(_)) = &pool_event.r#type {
-            let pool_address = &pool_event.pool_address;
-
-            if checked_pools.insert(pool_address.clone()) {
-                let rolling_key = format!("{pool_address}:rolling");
-                let current_rolling = rolling_volumes
-                    .get_last(&rolling_key)
-                    .unwrap_or_else(|| "0,0".to_string());
-
-                let parts: Vec<&str> = current_rolling.split(',').collect();
-                let token0_vol = parts.first().unwrap_or(&"0");
-                let token1_vol = parts.get(1).unwrap_or(&"0");
-
-                // Log for debugging
-                substreams::log::debug!(
-                    "Pool {}: rolling volume token0={}, token1={}",
-                    pool_address,
-                    token0_vol,
-                    token1_vol
-                );
-
-                // Always show rolling volume data for pools with swaps
-                let last_completed = completed_periods.get_last(pool_address).unwrap_or(0) as u64;
-                let current_period = (block_timestamp / 300) as u64;
-
-                output.rolling_volumes.push(RollingVolumeData {
-                    pool_address: pool_address.clone(),
-                    token0_volume_24h: token0_vol.to_string(),
-                    token1_volume_24h: token1_vol.to_string(),
-                    last_update_timestamp: block_timestamp as u64,
-                    last_completed_period: last_completed,
-                    bucket_count: if last_completed > 0 {
-                        std::cmp::min(
-                            288,
-                            current_period.saturating_sub(
-                                current_period.saturating_sub(std::cmp::min(current_period, 288)),
-                            ),
-                        ) as u32
-                    } else {
-                        0
-                    },
-                });
-            }
-        }
-    }
-
-    substreams::log::info!(
-        "Block {}: {} pools created, {} swaps, {} rolling volumes",
-        block.number,
-        output.pools_created.len(),
-        output.swaps.len(),
-        output.rolling_volumes.len()
-    );
-
-    Ok(output)
 }
 
 /// Store handler that tracks the last completed 5-minute period for each pool.
@@ -244,7 +264,6 @@ fn store_minute_volumes(
         .map(|h| h.timestamp.as_ref().map(|t| t.seconds).unwrap_or(0))
         .unwrap_or(0);
     let current_period = block_timestamp / 300; // 5-minute periods
-    let _bucket_index = current_period % 288;
 
     // Accumulate all swaps in this block by pool
     let mut pool_volumes: HashMap<String, VolumeAccumulator> = HashMap::new();
@@ -259,8 +278,6 @@ fn store_minute_volumes(
     }
 
     // Store volumes in the current period's bucket
-    // Since we can't read our own state, we'll overwrite the bucket
-    // This means each bucket holds the volume for ONE 5-minute period
     for (pool_address, accumulator) in pool_volumes {
         let bucket_idx = current_period % 288;
         let bucket_key = format!("{pool_address}:bucket:{bucket_idx}");

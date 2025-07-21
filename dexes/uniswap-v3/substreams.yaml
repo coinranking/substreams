@@ -9,10 +9,8 @@ imports:
 protobuf:
   files:
     - dex_common.proto
-    - output.proto
   importPaths:
     - ../../proto
-    - ./proto
 
 binaries:
   default:
@@ -24,7 +22,7 @@ modules:
   - name: store_completed_periods
     kind: store
     # Set to: current block - 7200 for 24h history, or same as test.sh START_BLOCK for testing
-    initialBlock: &initialBlock 22939000
+    initialBlock: &initialBlock 22964000
     updatePolicy: max
     valueType: int64
     inputs:
@@ -54,7 +52,7 @@ modules:
       - store: store_completed_periods
       - store: store_minute_volumes
 
-  - name: map_uniswap_output
+  - name: map_uniswap_ticker_output
     kind: map
     initialBlock: *initialBlock
     inputs:
@@ -67,6 +65,6 @@ modules:
       - store: store_minute_volumes
       - store: store_rolling_volumes
     output:
-      type: proto:uniswap.v3.mvp.UniswapV3Output  # TODO: Migrate to proto:dex.common.v1.DexOutput
+      type: proto:dex.common.v1.DexOutput
 
 network: mainnet
