@@ -1,13 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Uniswap V3 — ultra‑fast 24 h rolling volume (cycle‑free, O(active pools))
+// Map handlers module
 // ─────────────────────────────────────────────────────────────────────────────
 
-mod constants;
-mod mappers;
-mod pb;
-mod stores;
-mod utils;
+pub mod ticker_output;
 
-// Re-export the handler functions for substreams
-pub use mappers::map_uniswap_ticker_output;
-pub use stores::{store_period_volumes, store_rolling_deltas};
+pub use ticker_output::map_uniswap_ticker_output;

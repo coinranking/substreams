@@ -1,13 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Uniswap V3 — ultra‑fast 24 h rolling volume (cycle‑free, O(active pools))
+// Constants and configuration for Uniswap V3 substreams
 // ─────────────────────────────────────────────────────────────────────────────
 
-mod constants;
-mod mappers;
-mod pb;
-mod stores;
-mod utils;
+/// Uniswap V3 factory contract address on Ethereum mainnet
+pub const FACTORY: &str = "0x1F98431c8aD98523631AE4a59f267346ea31F984";
 
-// Re-export the handler functions for substreams
-pub use mappers::map_uniswap_ticker_output;
-pub use stores::{store_period_volumes, store_rolling_deltas};
+/// Duration of each time bucket in seconds (5 minutes)
+pub const BUCKET_DURATION_SECONDS: u64 = 300;
+
+/// Number of buckets in a 24-hour period (24h / 5min = 288)
+pub const BUCKETS_PER_DAY: u64 = 288;
