@@ -99,6 +99,7 @@ CMD="$CMD map_uniswap_ticker_output"
 CMD="$CMD --start-block $START_BLOCK"
 CMD="$CMD --stop-block $STOP_BLOCK"
 CMD="$CMD --production-mode=false"
+CMD="$CMD --limit-processed-blocks=0"
 CMD="$CMD --output=$OUTPUT_FORMAT"
 
 # Run the command with optional filtering
