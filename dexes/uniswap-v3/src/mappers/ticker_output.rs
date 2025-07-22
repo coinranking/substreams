@@ -96,8 +96,8 @@ pub fn map_uniswap_ticker_output(
 
         dex_output.tickers.push(PoolTicker {
             pool_address,
-            volume_token0: format_bigdecimal(&current_volume_token0),
-            volume_token1: format_bigdecimal(&current_volume_token1),
+            block_volume_token0: format_bigdecimal(&current_volume_token0),
+            block_volume_token1: format_bigdecimal(&current_volume_token1),
             swap_count: swaps,
             close_price: "0".into(), // Price calculation left for downstream processing
             volume_24h_token0: format_bigdecimal(&rolling_volume_token0),
