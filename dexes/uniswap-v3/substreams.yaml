@@ -1,7 +1,7 @@
 specVersion: v0.1.0
 
 package:
-  name: uniswap_v3_hyperperf
+  name: coinranking_uniswap_v3
   version: v0.1.0
 
 imports:
@@ -16,7 +16,7 @@ protobuf:
 binaries:
   default:
     type: wasm/rust-v1
-    file: ../../target/wasm32-unknown-unknown/release/uniswap_v3_hyperperf.wasm
+    file: ../../target/wasm32-unknown-unknown/release/coinranking_uniswap_v3.wasm
 
 network: mainnet
 
