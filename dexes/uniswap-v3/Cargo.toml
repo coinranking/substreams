@@ -1,10 +1,10 @@
 [package]
-name = "uniswap-v3-mvp"
+name = "uniswap-v3-hyperperf"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "uniswap_v3_mvp"
+name = "uniswap_v3_hyperperf"
 crate-type = ["cdylib"]
 
 [dependencies]

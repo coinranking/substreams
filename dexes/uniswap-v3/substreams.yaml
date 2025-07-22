@@ -1,6 +1,7 @@
 specVersion: v0.1.0
+
 package:
-  name: 'uniswap_v3_mvp'
+  name: uniswap_v3_hyperperf
   version: v0.1.0
 
 imports:
@@ -10,61 +11,48 @@ protobuf:
   files:
     - dex_common.proto
   importPaths:
-    - ../../proto
+    - ../../proto                # adjust if needed
 
 binaries:
   default:
     type: wasm/rust-v1
-    file: ../../target/wasm32-unknown-unknown/release/uniswap_v3_mvp.wasm
+    file: ../../target/wasm32-unknown-unknown/release/uniswap_v3_hyperperf.wasm
 
+network: mainnet
+
+# ─────────────────────────── modules ────────────────────────────
 modules:
-  # Store to track the last completed period for each pool
-  - name: store_completed_periods
-    kind: store
-    # Set to: current block - 7200 for 24h history, or same as test.sh START_BLOCK for testing
-    initialBlock: &initialBlock 22964000
-    updatePolicy: max
-    valueType: int64
-    inputs:
-      - source: sf.ethereum.type.v2.Block
-      - map: uniswap:uni_v0_2_9:map_extract_data_types
-
-  # Store for period volume buckets
+  # 1️⃣ 5‑minute buckets (add)
   - name: store_period_volumes
     kind: store
-    initialBlock: *initialBlock
-    updatePolicy: set
-    valueType: string
+    initialBlock: &start 22964000
+    updatePolicy: add
+    valueType: bigdecimal
     inputs:
       - source: sf.ethereum.type.v2.Block
       - map: uniswap:uni_v0_2_9:map_extract_data_types
-      - store: store_completed_periods
 
-  # Store for 24-hour rolling volumes
-  - name: store_rolling_volumes
+  # 2️⃣ rolling 24 h totals (add of signed deltas) — NO other store deps → no cycle
+  - name: store_rolling_deltas
     kind: store
-    initialBlock: *initialBlock
-    updatePolicy: set
-    valueType: string
+    initialBlock: *start
+    updatePolicy: add
+    valueType: bigdecimal
     inputs:
       - source: sf.ethereum.type.v2.Block
       - map: uniswap:uni_v0_2_9:map_extract_data_types
-      - store: store_completed_periods
       - store: store_period_volumes
+        mode: get
 
+  # 3️⃣ final ticker output
   - name: map_uniswap_ticker_output
     kind: map
-    initialBlock: *initialBlock
+    initialBlock: *start
     inputs:
       - source: sf.ethereum.type.v2.Block
       - map: uniswap:uni_v0_2_9:map_pools_created
       - map: uniswap:uni_v0_2_9:map_extract_data_types
-      - store: uniswap:uni_v0_2_9:store_swaps_volume
-      - store: uniswap:uni_v0_2_9:store_total_tx_counts
-      - store: store_completed_periods
-      - store: store_period_volumes
-      - store: store_rolling_volumes
+      - store: store_rolling_deltas
+        mode: get
     output:
       type: proto:dex.common.v1.DexOutput
-
-network: mainnet
