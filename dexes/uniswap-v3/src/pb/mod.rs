@@ -8,6 +8,7 @@ pub mod dex {
 
 pub mod uniswap {
     pub mod types {
+        #[allow(clippy::enum_variant_names)]
         pub mod v1 {
             include!("../generated/uniswap.types.v1.rs");
         }

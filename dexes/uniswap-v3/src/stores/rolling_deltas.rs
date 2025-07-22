@@ -74,24 +74,24 @@ pub fn store_rolling_deltas(
         if !is_zero(&evicted_volume_token0) {
             rolling_volumes_store.add(
                 0,
-                &format!("{pool_address}:t0"),
+                format!("{pool_address}:t0"),
                 BigDecimal::zero() - evicted_volume_token0,
             );
         }
         if !is_zero(&evicted_volume_token1) {
             rolling_volumes_store.add(
                 0,
-                &format!("{pool_address}:t1"),
+                format!("{pool_address}:t1"),
                 BigDecimal::zero() - evicted_volume_token1,
             );
         }
 
         // Add current period's delta
         if !is_zero(&delta_token0) {
-            rolling_volumes_store.add(0, &format!("{pool_address}:t0"), delta_token0);
+            rolling_volumes_store.add(0, format!("{pool_address}:t0"), delta_token0);
         }
         if !is_zero(&delta_token1) {
-            rolling_volumes_store.add(0, &format!("{pool_address}:t1"), delta_token1);
+            rolling_volumes_store.add(0, format!("{pool_address}:t1"), delta_token1);
         }
     }
 }

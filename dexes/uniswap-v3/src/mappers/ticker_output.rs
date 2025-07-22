@@ -88,10 +88,10 @@ pub fn map_uniswap_ticker_output(
     for (pool_address, (current_volume_token0, current_volume_token1, swaps)) in pool_aggregations {
         // Fetch 24h rolling volumes from store
         let rolling_volume_token0 = rolling_volumes_store
-            .get_last(&format!("{pool_address}:t0"))
+            .get_last(format!("{pool_address}:t0"))
             .unwrap_or_default();
         let rolling_volume_token1 = rolling_volumes_store
-            .get_last(&format!("{pool_address}:t1"))
+            .get_last(format!("{pool_address}:t1"))
             .unwrap_or_default();
 
         dex_output.tickers.push(PoolTicker {
