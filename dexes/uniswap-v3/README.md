@@ -108,12 +108,12 @@ SUBSTREAMS_API_TOKEN=your-jwt-token-here
 
 Once tested, you can publish your package:
 
-1. Upload the `.spkg` file to GitHub releases, IPFS, or another public location
-2. Share the URL for others to use in their `substreams.yaml`:
-   ```yaml
-   imports:
-     coinranking: https://github.com/coinranking/substreams/releases/download/v0.1.0/coinranking-uniswap-v3-v0.1.0.spkg
-   ```
+```bash
+# Publish to the official Substreams.dev registry
+substreams publish coinranking-uniswap-v3-v0.1.0.spkg
+```
+
+This makes your package discoverable on the Substreams registry where others can easily find and use it.
 
 ## Output Format
 
