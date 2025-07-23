@@ -38,14 +38,38 @@ Use the test script with various options:
 ## Building
 
 ```bash
+# Build the WASM module
 cargo build --target wasm32-unknown-unknown --release
+
+# Generate required protobuf files from imported packages
+substreams protogen substreams.yaml --output-path src/generated
 ```
 
-## Deployment
+## Packaging
+
+To create a Substreams package (`.spkg`) for deployment:
 
 ```bash
-substreams pack -o uniswap-v3-mvp.spkg
+# Create an SPKG file with default naming (coinranking-uniswap-v3-v0.1.0.spkg)
+substreams pack
+
+# Or specify a custom output file
+substreams pack -o my-custom-name.spkg
 ```
+
+The SPKG file contains:
+- Compiled WASM module
+- Protobuf definitions
+- Substreams manifest
+- All dependencies
+
+## Publishing
+
+To publish your package:
+
+1. Test locally: `substreams run coinranking-uniswap-v3-v0.1.0.spkg map_uniswap_ticker_output`
+2. Upload to a public location (GitHub releases, IPFS, etc.)
+3. Share the URL for others to import in their `substreams.yaml`
 
 ## Output Format
 

@@ -3,6 +3,8 @@ specVersion: v0.1.0
 package:
   name: coinranking_uniswap_v3
   version: v0.1.0
+  url: https://github.com/coinranking/substreams
+  description: "Real-time 24-hour rolling volume tracking for Uniswap V3 pools on Ethereum mainnet"
 
 imports:
   uniswap: https://github.com/streamingfast/substreams-uniswap-v3/releases/download/v0.2.10/substreams-uniswap-v3-v0.2.10.spkg
