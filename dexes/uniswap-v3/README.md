@@ -57,6 +57,18 @@ The main output includes:
 
 ## Development
 
+### Generated Files
+
+The `src/generated/` directory contains protobuf-generated Rust code from the imported Uniswap substreams package. These files are:
+- Not tracked in git (see `.gitignore`)
+- Required for compilation but should not be edited
+- Automatically included when downloading the Uniswap dependency
+
+If you need to regenerate these files:
+1. They come from the imported Uniswap substreams package defined in `substreams.yaml`
+2. The files are generated during the Uniswap package build process
+3. Only `uniswap.types.v1.rs` is actually used by our code
+
 ### Code Quality
 
 This project uses Rust's standard formatting and linting tools:

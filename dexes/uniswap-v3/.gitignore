@@ -1,0 +1,46 @@
+# Generated files
+src/generated/
+
+# Rust build artifacts
+target/
+**/*.rs.bk
+*.pdb
+
+# Substreams artifacts
+*.spkg
+.substreams/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test and benchmark outputs
+*.profraw
+*.profdata
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Log files
+*.log
+logs/
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Build script outputs
+/build/
