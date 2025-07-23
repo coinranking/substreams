@@ -74,19 +74,30 @@ To test your packaged Substreams:
 ```bash
 # Load JWT token from .env file
 source ../../.env
+
+# For testing: Run 100 blocks from a specific start
 substreams run coinranking-uniswap-v3-v0.1.0.spkg map_uniswap_ticker_output \
   --substreams-api-token="$SUBSTREAMS_API_TOKEN" \
   --substreams-endpoint="mainnet.eth.streamingfast.io:443" \
-  -s 22964000 \
-  -t +100
+  -s 22964000 \    # Start at specific block (overrides initialBlock in yaml)
+  -t +100          # Stop after 100 blocks
 
-# Or as a one-liner
-SUBSTREAMS_API_TOKEN=$(grep SUBSTREAMS_API_TOKEN ../../.env | cut -d '=' -f2) \
+# For production: Start from 24+ hours ago for complete rolling volumes
 substreams run coinranking-uniswap-v3-v0.1.0.spkg map_uniswap_ticker_output \
+  --substreams-api-token="$SUBSTREAMS_API_TOKEN" \
   --substreams-endpoint="mainnet.eth.streamingfast.io:443" \
-  -s 22964000 \
-  -t +100
+  -s -7500 \       # ~25 hours ago (7200 blocks/day + margin)
+  -t 0             # Stream indefinitely
 ```
+
+### Understanding Block Numbers
+
+- **Ethereum block time**: ~12 seconds
+- **Blocks per day**: ~7,200 (86,400 seconds ÷ 12)
+- **Recommended start**: `-7500` (25 hours ago)
+  - Provides margin for block time variance
+  - Ensures complete 24h rolling volume data
+  - Allows proper warm-up of volume calculations
 
 The `.env` file should contain:
 ```
