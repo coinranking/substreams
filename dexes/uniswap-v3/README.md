@@ -62,12 +62,17 @@ The main output includes:
 The `src/generated/` directory contains protobuf-generated Rust code from the imported Uniswap substreams package. These files are:
 - Not tracked in git (see `.gitignore`)
 - Required for compilation but should not be edited
-- Automatically included when downloading the Uniswap dependency
+- Generated using the `substreams protogen` command
 
-If you need to regenerate these files:
-1. They come from the imported Uniswap substreams package defined in `substreams.yaml`
-2. The files are generated during the Uniswap package build process
-3. Only `uniswap.types.v1.rs` is actually used by our code
+To regenerate these files:
+```bash
+# Generate Rust bindings from the imported Uniswap package
+substreams protogen substreams.yaml --output-path src/generated
+
+# Note: Only uniswap.types.v1.rs is actually used by our code
+```
+
+This command extracts and generates Rust code from the imported Uniswap SPKG defined in `substreams.yaml`.
 
 ### Code Quality
 
