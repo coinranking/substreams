@@ -20,6 +20,36 @@ Each DEX package should:
 2. Output data in the `DexOutput` format
 3. Populate the `DexInfo` field appropriately
 
+### Build Configuration
+
+Each DEX package needs a `build.rs` file to compile the shared proto:
+
+```rust
+use std::env;
+use std::path::PathBuf;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    
+    // Compile proto file
+    prost_build::compile_protos(&["../../proto/dex_common.proto"], &["../../proto"])?;
+    
+    Ok(())
+}
+```
+
+And include the generated code in `src/pb/mod.rs`:
+
+```rust
+pub mod dex {
+    pub mod common {
+        pub mod v1 {
+            include!(concat!(env!("OUT_DIR"), "/dex.common.v1.rs"));
+        }
+    }
+}
+```
+
 ## Benefits
 
 - Unified data format across all DEXes
