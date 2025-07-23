@@ -45,31 +45,64 @@ cargo build --target wasm32-unknown-unknown --release
 substreams protogen substreams.yaml --output-path src/generated
 ```
 
-## Packaging
+## Packaging for Deployment
 
-To create a Substreams package (`.spkg`) for deployment:
+To prepare your Substreams for deployment:
 
 ```bash
-# Create an SPKG file with default naming (coinranking-uniswap-v3-v0.1.0.spkg)
-substreams pack
+# 1. Build the WASM module
+cargo build --target wasm32-unknown-unknown --release
 
-# Or specify a custom output file
-substreams pack -o my-custom-name.spkg
+# 2. Generate required protobuf files (if not already present)
+substreams protogen substreams.yaml --output-path src/generated
+
+# 3. Create the SPKG package
+substreams pack
+# This creates: coinranking-uniswap-v3-v0.1.0.spkg
 ```
 
 The SPKG file contains:
 - Compiled WASM module
-- Protobuf definitions
+- Protobuf definitions  
 - Substreams manifest
 - All dependencies
 
+## Running the Package
+
+To test your packaged Substreams:
+
+```bash
+# Load JWT token from .env file
+source ../../.env
+substreams run coinranking-uniswap-v3-v0.1.0.spkg map_uniswap_ticker_output \
+  --substreams-api-token="$SUBSTREAMS_API_TOKEN" \
+  --substreams-endpoint="mainnet.eth.streamingfast.io:443" \
+  -s 22964000 \
+  -t +100
+
+# Or as a one-liner
+SUBSTREAMS_API_TOKEN=$(grep SUBSTREAMS_API_TOKEN ../../.env | cut -d '=' -f2) \
+substreams run coinranking-uniswap-v3-v0.1.0.spkg map_uniswap_ticker_output \
+  --substreams-endpoint="mainnet.eth.streamingfast.io:443" \
+  -s 22964000 \
+  -t +100
+```
+
+The `.env` file should contain:
+```
+SUBSTREAMS_API_TOKEN=your-jwt-token-here
+```
+
 ## Publishing
 
-To publish your package:
+Once tested, you can publish your package:
 
-1. Test locally: `substreams run coinranking-uniswap-v3-v0.1.0.spkg map_uniswap_ticker_output`
-2. Upload to a public location (GitHub releases, IPFS, etc.)
-3. Share the URL for others to import in their `substreams.yaml`
+1. Upload the `.spkg` file to GitHub releases, IPFS, or another public location
+2. Share the URL for others to use in their `substreams.yaml`:
+   ```yaml
+   imports:
+     coinranking: https://github.com/coinranking/substreams/releases/download/v0.1.0/coinranking-uniswap-v3-v0.1.0.spkg
+   ```
 
 ## Output Format
 
