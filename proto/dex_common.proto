@@ -2,20 +2,10 @@ syntax = "proto3";
 
 package dex.common.v1;
 
-// Main output message for any DEX
+// Main output message
 message DexOutput {
-  DexInfo dex_info = 1;
-  repeated PoolCreated pools_created = 2;
-  repeated PoolTicker tickers = 3;  // Combines swap activity and rolling volumes
-}
-
-// Information about which DEX this data is from
-message DexInfo {
-  string protocol = 1;    // "uniswap", "pancakeswap", "sushiswap", etc.
-  string version = 2;     // "v2", "v3", etc.
-  string chain = 3;       // "ethereum", "bsc", "polygon", etc.
-  uint64 block_number = 4;
-  string factory_address = 5;  // Factory contract address for this DEX
+  repeated PoolCreated pools_created = 1;
+  repeated PoolTicker tickers = 2;  // Combines swap activity and rolling volumes
 }
 
 // Pool/Pair creation event
@@ -26,6 +16,8 @@ message PoolCreated {
   uint32 fee = 4;          // For V3 DEXes, V2 can use 0 or fixed value
   uint64 block_number = 5;
   string transaction_hash = 6;
+  uint32 token0_decimals = 7;
+  uint32 token1_decimals = 8;
 }
 
 // Pool ticker data - aggregated activity per pool per block
