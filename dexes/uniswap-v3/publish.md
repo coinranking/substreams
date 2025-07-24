@@ -41,7 +41,7 @@ substreams protogen substreams.yaml --output-path src/generated
 
 # 3. Create the SPKG package
 substreams pack
-# This creates: coinranking-uniswap-v3-v0.1.0.spkg
+# This creates: coinranking-uniswap-v3-v0.1.1.spkg
 ```
 
 The SPKG file contains:
@@ -59,14 +59,14 @@ To test your packaged Substreams:
 source ../../.env
 
 # For testing: Run 100 blocks from a specific start
-substreams run coinranking-uniswap-v3-v0.1.0.spkg map_uniswap_ticker_output \
+substreams run coinranking-uniswap-v3-v0.1.1.spkg map_uniswap_ticker_output \
   --substreams-api-token="$SUBSTREAMS_API_TOKEN" \
   --substreams-endpoint="mainnet.eth.streamingfast.io:443" \
   -s 22964000 \    # Start at specific block (overrides initialBlock in yaml)
   -t +100          # Stop after 100 blocks
 
 # For production: Start from 24+ hours ago for complete rolling volumes
-substreams run coinranking-uniswap-v3-v0.1.0.spkg map_uniswap_ticker_output \
+substreams run coinranking-uniswap-v3-v0.1.1.spkg map_uniswap_ticker_output \
   --substreams-api-token="$SUBSTREAMS_API_TOKEN" \
   --substreams-endpoint="mainnet.eth.streamingfast.io:443" \
   -s -7500 \       # ~25 hours ago (7200 blocks/day + margin)
@@ -93,7 +93,7 @@ Once tested, you can publish your package:
 
 ```bash
 # Publish to the official Substreams.dev registry
-substreams publish coinranking-uniswap-v3-v0.1.0.spkg
+substreams publish coinranking-uniswap-v3-v0.1.1.spkg
 ```
 
 This makes your package discoverable on the Substreams registry where others can easily find and use it.

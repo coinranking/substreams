@@ -23,7 +23,7 @@ The substream produces `DexOutput` messages containing:
 ## Usage
 
 ```bash
-substreams run coinranking-uniswap-v3-v0.1.0.spkg map_uniswap_ticker_output \
+substreams run coinranking-uniswap-v3-v0.1.1.spkg map_uniswap_ticker_output \
   --substreams-api-token="YOUR_TOKEN" \
   --substreams-endpoint="mainnet.eth.streamingfast.io:443" \
   -s -7500  # Start ~25 hours ago for complete 24h data
