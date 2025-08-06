@@ -2,9 +2,9 @@ specVersion: v0.1.0
 
 package:
   name: coinranking_uniswap_v3
-  version: v0.1.1
+  version: v0.2.0
   url: https://github.com/coinranking/substreams
-  description: "Real-time 24-hour rolling volume tracking for Uniswap V3 pools on Ethereum mainnet"
+  description: "Real-time block-aggregated swap data for Uniswap V3 pools on Ethereum mainnet"
 
 imports:
   uniswap: https://github.com/streamingfast/substreams-uniswap-v3/releases/download/v0.2.10/substreams-uniswap-v3-v0.2.10.spkg
@@ -24,37 +24,13 @@ network: mainnet
 
 # ─────────────────────────── modules ────────────────────────────
 modules:
-  # 1️⃣ 5‑minute buckets (add)
-  - name: store_period_volumes
-    kind: store
-    initialBlock: &start 22964000
-    updatePolicy: add
-    valueType: bigdecimal
-    inputs:
-      - source: sf.ethereum.type.v2.Block
-      - map: uniswap:uni_v0_2_9:map_extract_data_types
-
-  # 2️⃣ rolling 24 h totals (add of signed deltas) — NO other store deps → no cycle
-  - name: store_rolling_deltas
-    kind: store
-    initialBlock: *start
-    updatePolicy: add
-    valueType: bigdecimal
-    inputs:
-      - source: sf.ethereum.type.v2.Block
-      - map: uniswap:uni_v0_2_9:map_extract_data_types
-      - store: store_period_volumes
-        mode: get
-
-  # 3️⃣ final ticker output
+  # Block-aggregated ticker output (no stores!)
   - name: map_uniswap_ticker_output
     kind: map
-    initialBlock: *start
+    initialBlock: 22988219
     inputs:
       - source: sf.ethereum.type.v2.Block
       - map: uniswap:uni_v0_2_9:map_pools_created
       - map: uniswap:uni_v0_2_9:map_extract_data_types
-      - store: store_rolling_deltas
-        mode: get
     output:
       type: proto:dex.common.v1.DexOutput

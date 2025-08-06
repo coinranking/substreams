@@ -6,8 +6,8 @@ set -e
 # Note: Ethereum produces ~7,200 blocks per day (1 block every ~12 seconds)
 # IMPORTANT: START_BLOCK should match initialBlock in substreams.yaml for testing
 # For production, set initialBlock to START_BLOCK - 7200 (24 hours earlier)
-START_BLOCK=22964000  # Update this to a recent block for testing
-STOP_BLOCK=22964900   # ~900 blocks after START_BLOCK
+START_BLOCK=22988219  # Update this to a recent block for testing
+STOP_BLOCK=22988519   # ~900 blocks after START_BLOCK
 OUTPUT_FORMAT="json"
 FILTER_OUTPUT=false
 TOKEN=""

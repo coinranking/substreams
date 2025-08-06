@@ -41,7 +41,7 @@ substreams protogen substreams.yaml --output-path src/generated
 
 # 3. Create the SPKG package
 substreams pack
-# This creates: coinranking-uniswap-v3-v0.1.1.spkg
+# This creates: coinranking-uniswap-v3-v0.2.0.spkg
 ```
 
 The SPKG file contains:
@@ -59,17 +59,17 @@ To test your packaged Substreams:
 source ../../.env
 
 # For testing: Run 100 blocks from a specific start
-substreams run coinranking-uniswap-v3-v0.1.1.spkg map_uniswap_ticker_output \
+substreams run coinranking-uniswap-v3-v0.2.0.spkg map_uniswap_ticker_output \
   --substreams-api-token="$SUBSTREAMS_API_TOKEN" \
   --substreams-endpoint="mainnet.eth.streamingfast.io:443" \
-  -s 22964000 \    # Start at specific block (overrides initialBlock in yaml)
+  -s 22964000 \    # Start at specific block
   -t +100          # Stop after 100 blocks
 
-# For production: Start from 24+ hours ago for complete rolling volumes
-substreams run coinranking-uniswap-v3-v0.1.1.spkg map_uniswap_ticker_output \
+# For production: Stream real-time data
+substreams run coinranking-uniswap-v3-v0.2.0.spkg map_uniswap_ticker_output \
   --substreams-api-token="$SUBSTREAMS_API_TOKEN" \
   --substreams-endpoint="mainnet.eth.streamingfast.io:443" \
-  -s -7500 \       # ~25 hours ago (7200 blocks/day + margin)
+  -s 12345678 \    # Start from any recent block
   -t 0             # Stream indefinitely
 ```
 
@@ -102,10 +102,21 @@ This makes your package discoverable on the Substreams registry where others can
 
 ### Architecture
 
-The system uses three store modules:
-- `store_completed_periods`: Tracks the last completed 5-minute period for each pool
-- `store_minute_volumes`: Stores volume data in 5-minute buckets (288 buckets for 24 hours)
-- `store_rolling_volumes`: Maintains the current 24-hour rolling volume for each pool
+The system is now stateless with a simplified structure:
+- Single `lib.rs` file contains all mapping logic
+- No store modules or complex directory structure
+- Aggregates all swaps per pool per block
+- Outputs block-level volumes and closing prices
+- Leaves rolling window calculations to downstream systems
+
+File structure:
+```
+src/
+├── lib.rs           # Main mapper implementation
+├── pb/
+│   └── mod.rs       # Protobuf module definitions
+└── generated/       # Auto-generated protobuf files
+```
 
 ### Generated Files
 
