@@ -5,7 +5,7 @@ package dex.common.v1;
 // Main output message
 message DexOutput {
   repeated PoolCreated pools_created = 1;
-  repeated PoolTicker tickers = 2;  // Combines swap activity and rolling volumes
+  repeated PoolTicker tickers = 2;  // Block-aggregated swap activity
 }
 
 // Pool/Pair creation event
@@ -33,11 +33,7 @@ message PoolTicker {
   // Price data (token0 per token1)
   string close_price = 5;    // Final price in this block
 
-  // 24-hour rolling volumes
-  string volume_24h_token0 = 6;
-  string volume_24h_token1 = 7;
-
   // Metadata
-  uint64 block_number = 8;
-  uint64 timestamp = 9;
+  uint64 block_number = 6;
+  uint64 timestamp = 7;
 }
