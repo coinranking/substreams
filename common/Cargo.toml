@@ -1,0 +1,8 @@
+[package]
+name = "dex-common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+substreams = { workspace = true }
+num-bigint = "0.4"

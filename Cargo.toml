@@ -1,6 +1,8 @@
 [workspace]
 members = [
+    "common",
     "dexes/uniswap-v3",
+    "dexes/quickswap-v3",
 ]
 resolver = "2"
 

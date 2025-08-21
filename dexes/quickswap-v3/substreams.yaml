@@ -1,0 +1,30 @@
+specVersion: v0.1.0
+
+package:
+  name: coinranking_quickswap_v3
+  version: v0.1.0
+  url: https://github.com/coinranking/substreams
+  image: assets/coinranking-logo.png
+  description: "Real-time block-aggregated swap data for QuickSwap V3 (Algebra) pools on Polygon mainnet"
+
+protobuf:
+  files:
+    - dex_common.proto
+  importPaths:
+    - ../../proto
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: ../../target/wasm32-unknown-unknown/release/coinranking_quickswap_v3.wasm
+
+network: polygon
+
+modules:
+  - name: map_quickswap_ticker_output
+    kind: map
+    initialBlock: 29000000  # Approximate QuickSwap V3 deployment on Polygon
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+    output:
+      type: proto:dex.common.v1.DexOutput
