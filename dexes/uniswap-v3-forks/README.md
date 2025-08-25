@@ -89,15 +89,23 @@ Aggregates swap data per pool per block, providing:
 - Closing price (calculated from sqrtPriceX96)
 - Block number and timestamp
 
-## Volume Format
+## Output Format
 
-**Important**: Volumes are reported in raw token units (not decimal-adjusted).
+This implementation outputs a `TickerOutput` message containing aggregated swap data for each pool that had activity in the block:
+
+### Volume Data
+- **Volumes are raw token units** (not decimal-adjusted)
 - Example: 500 USDC (6 decimals) is reported as "500000000"
 - Consumers must divide by 10^decimals to get actual token amounts
 
-## Output Format
-
-This implementation outputs a `TickerOutput` message containing aggregated swap data for each pool that had activity in the block. The output focuses purely on trading metrics, providing volumes, swap counts, and closing prices
+### Price Data
+- **Price is provided as sqrtPriceX96** - the raw value from swap events
+- This is NOT a human-readable price
+- Clients must calculate the actual price using:
+  ```
+  price = (sqrtPriceX96 / 2^96)^2 * 10^(token0_decimals - token1_decimals)
+  ```
+- The sqrtPriceX96 format is standard across all Uniswap V3 forks
 
 ## Building
 

@@ -22,10 +22,12 @@ All DEX packages output the same `TickerOutput` format defined in `proto/dex_com
 - Simple integration of new DEXes
 
 The ticker format provides block-aggregated data including:
-- Token volumes (raw units)
+- Token volumes (raw units as integers)
 - Swap counts
-- Closing prices
+- sqrtPriceX96 (raw price data - clients must calculate actual price)
 - Block number and timestamp
+
+**Note**: All numerical values (volumes, prices) are provided as raw blockchain values. Clients must apply decimal adjustments and price calculations based on token decimals.
 
 ## Supported DEXes
 
