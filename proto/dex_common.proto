@@ -2,22 +2,9 @@ syntax = "proto3";
 
 package dex.common.v1;
 
-// Main output message
-message DexOutput {
-  repeated PoolCreated pools_created = 1;
-  repeated PoolTicker tickers = 2;  // Block-aggregated swap activity
-}
-
-// Pool/Pair creation event
-message PoolCreated {
-  string pool_address = 1;
-  string token0 = 2;
-  string token1 = 3;
-  uint32 fee = 4;          // For V3 DEXes, V2 can use 0 or fixed value
-  uint64 block_number = 5;
-  string transaction_hash = 6;
-  uint32 token0_decimals = 7;
-  uint32 token1_decimals = 8;
+// Simplified output containing just ticker data
+message TickerOutput {
+  repeated PoolTicker tickers = 1;
 }
 
 // Pool ticker data - aggregated activity per pool per block
