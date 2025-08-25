@@ -13,12 +13,13 @@ message PoolTicker {
   string pool_address = 1;
 
   // Block-level volume aggregates (sum of all swaps in this block)
-  string block_volume_token0 = 2;  // Total token0 volume in this block
-  string block_volume_token1 = 3;  // Total token1 volume in this block
+  string block_volume_token0 = 2;  // Total token0 volume in this block (raw token units as integer)
+  string block_volume_token1 = 3;  // Total token1 volume in this block (raw token units as integer)
   uint32 swap_count = 4;           // Number of swaps for this pool in this block
 
-  // Price data (token0 per token1)
-  string close_price = 5;    // Final price in this block
+  // Price data - raw sqrtPriceX96 from last swap
+  // Client must calculate: price = (sqrtPriceX96 / 2^96)^2 * 10^(decimals0 - decimals1)
+  string sqrt_price_x96 = 5;      // sqrtPriceX96 value from last swap in block
 
   // Metadata
   uint64 block_number = 6;

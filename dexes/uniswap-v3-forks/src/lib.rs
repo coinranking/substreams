@@ -7,27 +7,21 @@
 // - PancakeSwap V3 (BSC, Ethereum)
 // - And other V3 forks that maintain the same event signatures
 //
-// IMPORTANT: Volume Format
+// IMPORTANT: Output Format
 // ------------------------
-// This implementation reports volumes in RAW TOKEN UNITS (not decimal-adjusted).
-// For example, 500 USDC (which has 6 decimals) is reported as "500000000".
+// 1. Volumes are reported in RAW TOKEN UNITS (not decimal-adjusted)
+//    Example: 500 USDC (6 decimals) is reported as "500000000"
 //
-// Consumers of this data must:
-// 1. Know the token decimals for each token in the pool
-// 2. Divide the volume by 10^decimals to get the actual token amount
-//
-// The price calculations (closePrice) are consistent across all V3 implementations,
-// as they are derived from sqrtPriceX96 which is a standardized format.
+// 2. Price is reported as sqrtPriceX96 (the raw value from swap events)
+//    Clients must calculate actual price using:
+//    price = (sqrtPriceX96 / 2^96)^2 * 10^(token0_decimals - token1_decimals)
 
 mod pb;
 
 use crate::pb::dex::common::v1::{PoolTicker, TickerOutput};
-use dex_common::{
-    calculate_price_from_sqrt_x96, ensure_0x_prefix, format_bigdecimal, int256_to_bigdecimal,
-    uint160_to_bigdecimal,
-};
+use dex_common::{ensure_0x_prefix, format_bigint, int256_to_bigint, uint160_to_bigint};
 use std::collections::HashMap;
-use substreams::scalar::BigDecimal;
+use substreams::scalar::BigInt;
 use substreams::Hex;
 use substreams_ethereum::block_view::LogView;
 use substreams_ethereum::pb::eth::v2 as eth;
@@ -40,19 +34,19 @@ const SWAP_EVENT_SIG: [u8; 32] =
 // Aggregation struct for pool data
 #[derive(Clone)]
 struct SwapAggregation {
-    volume_token0: BigDecimal,
-    volume_token1: BigDecimal,
+    volume_token0: BigInt,
+    volume_token1: BigInt,
     swap_count: u32,
-    last_sqrt_price: BigDecimal,
+    last_sqrt_price: BigInt,
 }
 
 impl Default for SwapAggregation {
     fn default() -> Self {
         Self {
-            volume_token0: BigDecimal::zero(),
-            volume_token1: BigDecimal::zero(),
+            volume_token0: BigInt::zero(),
+            volume_token1: BigInt::zero(),
             swap_count: 0,
-            last_sqrt_price: BigDecimal::zero(),
+            last_sqrt_price: BigInt::zero(),
         }
     }
 }
@@ -74,22 +68,22 @@ fn process_swap_event(log: &LogView, pool_aggregations: &mut HashMap<Vec<u8>, Sw
 
     // Parse amount0 (int256)
     let amount0_bytes = &log.data()[0..32];
-    let amount0 = int256_to_bigdecimal(amount0_bytes);
+    let amount0 = int256_to_bigint(amount0_bytes);
 
     // Parse amount1 (int256)
     let amount1_bytes = &log.data()[32..64];
-    let amount1 = int256_to_bigdecimal(amount1_bytes);
+    let amount1 = int256_to_bigint(amount1_bytes);
 
     // Calculate absolute volumes
     // Swap amounts are signed: negative = tokens out, positive = tokens in
     // We need absolute values since volume tracks total traded regardless of direction
-    let abs_amount0 = if amount0 < BigDecimal::zero() {
+    let abs_amount0 = if amount0 < BigInt::zero() {
         amount0.neg()
     } else {
         amount0
     };
 
-    let abs_amount1 = if amount1 < BigDecimal::zero() {
+    let abs_amount1 = if amount1 < BigInt::zero() {
         amount1.neg()
     } else {
         amount1
@@ -100,15 +94,13 @@ fn process_swap_event(log: &LogView, pool_aggregations: &mut HashMap<Vec<u8>, Sw
     entry.swap_count += 1;
 
     // Parse sqrtPriceX96 (uint160) - bytes 64-96
-    // Note: sqrtPriceX96 is the square root of the price ratio, multiplied by 2^96
+    // This is the raw sqrtPriceX96 value that clients will use to calculate price
     let price_bytes = &log.data()[64..96];
-    entry.last_sqrt_price = uint160_to_bigdecimal(price_bytes);
+    entry.last_sqrt_price = uint160_to_bigint(price_bytes);
 }
 
 #[substreams::handlers::map]
-pub fn map_v3_ticker_output(
-    block: eth::Block,
-) -> Result<TickerOutput, substreams::errors::Error> {
+pub fn map_v3_ticker_output(block: eth::Block) -> Result<TickerOutput, substreams::errors::Error> {
     let mut pool_aggregations: HashMap<Vec<u8>, SwapAggregation> = HashMap::new();
 
     // Process all swap events
@@ -142,19 +134,12 @@ pub fn map_v3_ticker_output(
     for (pool_address_bytes, aggregation) in pool_aggregations {
         let pool_address = ensure_0x_prefix(&Hex(&pool_address_bytes).to_string());
 
-        // Calculate the closing price from sqrt price
-        let close_price = if aggregation.last_sqrt_price > BigDecimal::zero() {
-            calculate_price_from_sqrt_x96(&aggregation.last_sqrt_price)
-        } else {
-            BigDecimal::zero()
-        };
-
         tickers.push(PoolTicker {
             pool_address,
-            block_volume_token0: format_bigdecimal(&aggregation.volume_token0),
-            block_volume_token1: format_bigdecimal(&aggregation.volume_token1),
+            block_volume_token0: format_bigint(&aggregation.volume_token0),
+            block_volume_token1: format_bigint(&aggregation.volume_token1),
             swap_count: aggregation.swap_count,
-            close_price: format_bigdecimal(&close_price),
+            sqrt_price_x96: format_bigint(&aggregation.last_sqrt_price),
             block_number: block.number,
             timestamp: timestamp_seconds,
         });

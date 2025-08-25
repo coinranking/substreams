@@ -2,7 +2,7 @@ specVersion: v0.1.0
 
 package:
   name: coinranking_uniswap_v3_forks
-  version: v0.1.0
+  version: v0.2.0
   url: https://github.com/coinranking/substreams
   image: assets/coinranking-logo.png
   description: "Real-time block-aggregated swap data for Uniswap V3 and compatible forks"
