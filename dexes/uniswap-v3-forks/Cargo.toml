@@ -1,5 +1,5 @@
 [package]
-name = "coinranking_quickswap_v3"
+name = "coinranking_uniswap_v3_forks"
 version = "0.1.0"
 edition = "2021"
 

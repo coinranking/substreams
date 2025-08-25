@@ -1,19 +1,22 @@
-// QuickSwap V3 (Algebra Protocol) Substreams Implementation
+// Uniswap V3 and Compatible Forks Substreams Implementation
 //
-// IMPORTANT: Volume Format Difference
-// ------------------------------------
+// This implementation works with all Uniswap V3 forks across different blockchains,
+// including:
+// - Uniswap V3 (Ethereum, Polygon, Arbitrum, Optimism, Base, etc.)
+// - QuickSwap V3 / Algebra Protocol (Polygon)
+// - PancakeSwap V3 (BSC, Ethereum)
+// - And other V3 forks that maintain the same event signatures
+//
+// IMPORTANT: Volume Format
+// ------------------------
 // This implementation reports volumes in RAW TOKEN UNITS (not decimal-adjusted).
 // For example, 500 USDC (which has 6 decimals) is reported as "500000000".
-//
-// This differs from the Uniswap V3 implementation which reports decimal-adjusted
-// volumes (500 USDC shown as "500") because it uses an upstream package that
-// provides pre-processed, decimal-adjusted values.
 //
 // Consumers of this data must:
 // 1. Know the token decimals for each token in the pool
 // 2. Divide the volume by 10^decimals to get the actual token amount
 //
-// The price calculations (closePrice) are consistent between both implementations,
+// The price calculations (closePrice) are consistent across all V3 implementations,
 // as they are derived from sqrtPriceX96 which is a standardized format.
 
 mod pb;
@@ -103,7 +106,7 @@ fn process_swap_event(log: &LogView, pool_aggregations: &mut HashMap<Vec<u8>, Sw
 }
 
 #[substreams::handlers::map]
-pub fn map_quickswap_ticker_output(
+pub fn map_v3_ticker_output(
     block: eth::Block,
 ) -> Result<DexOutput, substreams::errors::Error> {
     let mut pool_aggregations: HashMap<Vec<u8>, SwapAggregation> = HashMap::new();
@@ -133,9 +136,9 @@ pub fn map_quickswap_ticker_output(
             ))
         })?;
 
-    // Create output with ticker data only (no pool creation events for QuickSwap)
+    // Create output with ticker data only (no pool creation events in this implementation)
     let mut dex_output = DexOutput {
-        pools_created: vec![], // QuickSwap doesn't track pool creation (no decimals available)
+        pools_created: vec![], // Pool creation tracking not included in this implementation
         tickers: vec![],
     };
 

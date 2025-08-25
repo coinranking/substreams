@@ -3,9 +3,9 @@
 set -e
 
 # Default values
-# Note: Polygon produces ~43,200 blocks per day (1 block every ~2 seconds)
-# IMPORTANT: START_BLOCK should match initialBlock in substreams.yaml for testing
-START_BLOCK=65000000  # Recent Polygon block for testing
+# Network-specific defaults (can be overridden with CLI args)
+# Use --start-block to specify the appropriate block for your target network
+START_BLOCK=12369621  # Default: Uniswap V3 deployment on Ethereum
 STOP_BLOCK=65000100   # 100 blocks after START_BLOCK
 OUTPUT_FORMAT="json"
 FILTER_OUTPUT=false
@@ -81,20 +81,22 @@ if [ -z "$TOKEN" ]; then
     fi
 fi
 
-echo "Building QuickSwap V3 Substream..."
+echo "Building V3 Substream..."
 source ~/.cargo/env
 cd $(dirname "$0")  # Ensure we're in the right directory
 cargo build --target wasm32-unknown-unknown --release
 
-echo "Running QuickSwap V3 Substream test on Polygon..."
+echo "Running V3 Substream test..."
 echo "Block range: $START_BLOCK to $STOP_BLOCK"
 echo "Output format: $OUTPUT_FORMAT"
 
 # Build the command
-CMD="substreams run -e polygon.streamingfast.io:443"
+# Default to mainnet, can be overridden with ENDPOINT env var
+ENDPOINT=${ENDPOINT:-"mainnet.eth.streamingfast.io:443"}
+CMD="substreams run -e $ENDPOINT"
 CMD="$CMD --header \"Authorization: Bearer $TOKEN\""
 CMD="$CMD substreams.yaml"
-CMD="$CMD map_quickswap_ticker_output"
+CMD="$CMD map_v3_ticker_output"
 CMD="$CMD --start-block $START_BLOCK"
 CMD="$CMD --stop-block $STOP_BLOCK"
 CMD="$CMD --production-mode=false"
@@ -107,7 +109,7 @@ if [ "$FILTER_OUTPUT" = true ] && [ "$OUTPUT_FORMAT" = "json" ]; then
     # First run the command and save output
     OUTPUT=$(eval "$CMD" 2>&1)
     # Check if it's JSON and filter, otherwise show raw output
-    echo "$OUTPUT" | jq -r 'select(.data.map_quickswap_ticker_output != null) | .data.map_quickswap_ticker_output | if ((.tickers | length) > 0 or (.poolsCreated | length) > 0) then . else empty end' 2>/dev/null || echo "$OUTPUT"
+    echo "$OUTPUT" | jq -r 'select(.data.map_v3_ticker_output != null) | .data.map_v3_ticker_output | if ((.tickers | length) > 0 or (.poolsCreated | length) > 0) then . else empty end' 2>/dev/null || echo "$OUTPUT"
 else
     eval "$CMD"
 fi
