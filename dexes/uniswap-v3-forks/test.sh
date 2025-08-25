@@ -17,7 +17,7 @@ usage() {
     echo "Options:"
     echo "  -s, --start-block BLOCK    Start block (default: $START_BLOCK)"
     echo "  -e, --stop-block BLOCK     Stop block (default: $STOP_BLOCK)"
-    echo "  -f, --filter               Filter output to show only blocks with swaps/pools"
+    echo "  -f, --filter               Filter output to show only blocks with swaps"
     echo "  -o, --output FORMAT        Output format: json, jsonl, ui (default: json)"
     echo "  -t, --token TOKEN          Authorization token (required if not in env)"
     echo "  -h, --help                 Show this help message"
@@ -105,11 +105,11 @@ CMD="$CMD --output=$OUTPUT_FORMAT"
 
 # Run the command with optional filtering
 if [ "$FILTER_OUTPUT" = true ] && [ "$OUTPUT_FORMAT" = "json" ]; then
-    echo "Filtering output to show only blocks with swaps or pools created..."
+    echo "Filtering output to show only blocks with swaps..."
     # First run the command and save output
     OUTPUT=$(eval "$CMD" 2>&1)
     # Check if it's JSON and filter, otherwise show raw output
-    echo "$OUTPUT" | jq -r 'select(.data.map_v3_ticker_output != null) | .data.map_v3_ticker_output | if ((.tickers | length) > 0 or (.poolsCreated | length) > 0) then . else empty end' 2>/dev/null || echo "$OUTPUT"
+    echo "$OUTPUT" | jq -r 'select(.data.map_v3_ticker_output != null) | .data.map_v3_ticker_output | if (.tickers | length) > 0 then . else empty end' 2>/dev/null || echo "$OUTPUT"
 else
     eval "$CMD"
 fi
