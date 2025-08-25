@@ -29,4 +29,4 @@ modules:
     inputs:
       - source: sf.ethereum.type.v2.Block
     output:
-      type: proto:dex.common.v1.DexOutput
+      type: proto:dex.common.v1.TickerOutput

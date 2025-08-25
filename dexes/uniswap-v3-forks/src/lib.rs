@@ -21,7 +21,7 @@
 
 mod pb;
 
-use crate::pb::dex::common::v1::{DexOutput, PoolTicker};
+use crate::pb::dex::common::v1::{PoolTicker, TickerOutput};
 use dex_common::{
     calculate_price_from_sqrt_x96, ensure_0x_prefix, format_bigdecimal, int256_to_bigdecimal,
     uint160_to_bigdecimal,
@@ -108,7 +108,7 @@ fn process_swap_event(log: &LogView, pool_aggregations: &mut HashMap<Vec<u8>, Sw
 #[substreams::handlers::map]
 pub fn map_v3_ticker_output(
     block: eth::Block,
-) -> Result<DexOutput, substreams::errors::Error> {
+) -> Result<TickerOutput, substreams::errors::Error> {
     let mut pool_aggregations: HashMap<Vec<u8>, SwapAggregation> = HashMap::new();
 
     // Process all swap events
@@ -136,11 +136,8 @@ pub fn map_v3_ticker_output(
             ))
         })?;
 
-    // Create output with ticker data only (no pool creation events in this implementation)
-    let mut dex_output = DexOutput {
-        pools_created: vec![], // Pool creation tracking not included in this implementation
-        tickers: vec![],
-    };
+    // Create output with ticker data
+    let mut tickers = vec![];
 
     for (pool_address_bytes, aggregation) in pool_aggregations {
         let pool_address = ensure_0x_prefix(&Hex(&pool_address_bytes).to_string());
@@ -152,7 +149,7 @@ pub fn map_v3_ticker_output(
             BigDecimal::zero()
         };
 
-        dex_output.tickers.push(PoolTicker {
+        tickers.push(PoolTicker {
             pool_address,
             block_volume_token0: format_bigdecimal(&aggregation.volume_token0),
             block_volume_token1: format_bigdecimal(&aggregation.volume_token1),
@@ -163,5 +160,5 @@ pub fn map_v3_ticker_output(
         });
     }
 
-    Ok(dex_output)
+    Ok(TickerOutput { tickers })
 }

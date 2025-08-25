@@ -95,6 +95,10 @@ Aggregates swap data per pool per block, providing:
 - Example: 500 USDC (6 decimals) is reported as "500000000"
 - Consumers must divide by 10^decimals to get actual token amounts
 
+## Output Format
+
+This implementation outputs a `TickerOutput` message containing aggregated swap data for each pool that had activity in the block. The output focuses purely on trading metrics, providing volumes, swap counts, and closing prices
+
 ## Building
 
 ```bash
