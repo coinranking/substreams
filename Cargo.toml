@@ -2,6 +2,7 @@
 members = [
     "common",
     "dexes/uniswap-v3-forks",
+    "dexes/pancakeswap-v3-forks",
 ]
 resolver = "2"
 

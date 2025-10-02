@@ -1,0 +1,30 @@
+specVersion: v0.1.0
+
+package:
+  name: coinranking_pancakeswap_v3_forks
+  version: v0.1.1
+  url: https://github.com/coinranking/substreams
+  image: assets/coinranking-logo.png
+  description: "Real-time block-aggregated swap data for PancakeSwap V3"
+
+protobuf:
+  files:
+    - dex_common.proto
+  importPaths:
+    - ../../proto
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: ../../target/wasm32-unknown-unknown/release/coinranking_pancakeswap_v3_forks.wasm
+
+# Network can be specified at runtime via CLI parameters
+# Examples: mainnet (Ethereum), bsc, arbitrum-one, etc.
+
+modules:
+  - name: map_v3_ticker_output
+    kind: map
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+    output:
+      type: proto:dex.common.v1.TickerOutput
