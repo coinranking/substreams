@@ -17,9 +17,11 @@ message PoolTicker {
   string block_volume_token1 = 3;  // Total token1 volume in this block (raw token units as integer)
   uint32 swap_count = 4;           // Number of swaps for this pool in this block
 
-  // Price data - raw sqrtPriceX96 from last swap
+  // Price data - raw sqrtPriceX96
   // Client must calculate: price = (sqrtPriceX96 / 2^96)^2 * 10^(decimals0 - decimals1)
-  string sqrt_price_x96 = 5;      // sqrtPriceX96 value from last swap in block
+  // V3: Directly from swap events
+  // V2: Calculated from reserves via Sync events as sqrt(reserve1/reserve0) * 2^96
+  string sqrt_price_x96 = 5;
 
   // Metadata
   uint64 block_number = 6;
