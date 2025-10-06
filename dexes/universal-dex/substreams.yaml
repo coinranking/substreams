@@ -1,0 +1,31 @@
+specVersion: v0.1.0
+
+package:
+  name: coinranking_universal_dex
+  version: v0.1.0
+  url: https://github.com/coinranking/substreams
+  image: assets/coinranking-logo.png
+  description: "Universal DEX substreams for Uniswap V2/V3, PancakeSwap V2/V3, SushiSwap and all compatible forks"
+
+protobuf:
+  files:
+    - dex_common.proto
+  importPaths:
+    - ../../proto
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: ../../target/wasm32-unknown-unknown/release/coinranking_universal_dex.wasm
+
+# Network can be specified at runtime via CLI parameters
+# Examples: mainnet, polygon, arbitrum-one, optimism, base, etc.
+
+modules:
+  - name: map_dex_ticker_output
+    kind: map
+    # No default initial block - must be specified via CLI parameter --start-block
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+    output:
+      type: proto:dex.common.v1.TickerOutput

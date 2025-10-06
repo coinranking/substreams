@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "common",
+    "dexes/universal-dex",
     "dexes/uniswap-v2-forks",
     "dexes/uniswap-v3-forks",
     "dexes/pancakeswap-v3-forks",
