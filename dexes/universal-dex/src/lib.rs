@@ -18,11 +18,12 @@
 
 mod common;
 mod pb;
+mod supply;
 mod v2;
 mod v3;
 
 use crate::common::SwapAggregation;
-use crate::pb::dex::common::v1::{PoolTicker, TickerOutput};
+use crate::pb::evm::common::v1::{BlockOutput, PoolTicker, SupplyDelta};
 use dex_common::{ensure_0x_prefix, format_bigint};
 use std::collections::HashMap;
 use substreams::Hex;
@@ -42,11 +43,28 @@ const UNISWAP_V3_SWAP_EVENT_SIG: [u8; 32] =
 const PANCAKESWAP_V3_SWAP_EVENT_SIG: [u8; 32] =
     hex_literal::hex!("19b47279256b2a23a1665c810c8d55a1758940ee09377d4f8d26497a3577dc83");
 
-#[substreams::handlers::map]
-pub fn map_dex_ticker_output(block: eth::Block) -> Result<TickerOutput, substreams::errors::Error> {
-    let mut pool_aggregations: HashMap<Vec<u8>, SwapAggregation> = HashMap::new();
+// ERC20 Transfer event: Transfer(address indexed from, address indexed to, uint256 value)
+const TRANSFER_EVENT_SIG: [u8; 32] =
+    hex_literal::hex!("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
 
-    // Process all DEX events
+#[substreams::handlers::map]
+pub fn map_block_output(block: eth::Block) -> Result<BlockOutput, substreams::errors::Error> {
+    let mut pool_aggregations: HashMap<Vec<u8>, SwapAggregation> = HashMap::new();
+    let mut supply_deltas: Vec<SupplyDelta> = Vec::new();
+
+    let timestamp_seconds = block
+        .header
+        .as_ref()
+        .and_then(|header| header.timestamp.as_ref())
+        .map(|timestamp| timestamp.seconds as u64)
+        .ok_or_else(|| {
+            substreams::errors::Error::msg(format!(
+                "Block {} missing header or timestamp",
+                block.number
+            ))
+        })?;
+
+    // Process all events
     for log in block.logs() {
         // Early exit if no topics
         if log.topics().is_empty() {
@@ -70,21 +88,18 @@ pub fn map_dex_ticker_output(block: eth::Block) -> Result<TickerOutput, substrea
                 v3::process_swap_event(&log, &mut pool_aggregations)
             }
 
+            // ERC20 Transfer events (for mint/burn tracking)
+            topic if topic == TRANSFER_EVENT_SIG => {
+                if let Some(delta) =
+                    supply::process_transfer_event(&log, block.number, timestamp_seconds)
+                {
+                    supply_deltas.push(delta);
+                }
+            }
+
             _ => {}
         }
     }
-
-    let timestamp_seconds = block
-        .header
-        .as_ref()
-        .and_then(|header| header.timestamp.as_ref())
-        .map(|timestamp| timestamp.seconds as u64)
-        .ok_or_else(|| {
-            substreams::errors::Error::msg(format!(
-                "Block {} missing header or timestamp",
-                block.number
-            ))
-        })?;
 
     // Create output with ticker data
     let mut tickers = vec![];
@@ -103,5 +118,9 @@ pub fn map_dex_ticker_output(block: eth::Block) -> Result<TickerOutput, substrea
         });
     }
 
-    Ok(TickerOutput { tickers })
+    Ok(BlockOutput {
+        tickers,
+        new_pools: vec![], // Reserved for future pool discovery
+        supply_deltas,
+    })
 }

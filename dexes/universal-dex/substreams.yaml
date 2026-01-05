@@ -9,7 +9,7 @@ package:
 
 protobuf:
   files:
-    - dex_common.proto
+    - evm_common.proto
   importPaths:
     - ../../proto
 
@@ -22,10 +22,10 @@ binaries:
 # Examples: mainnet, polygon, arbitrum-one, optimism, base, etc.
 
 modules:
-  - name: map_dex_ticker_output
+  - name: map_block_output
     kind: map
     # No default initial block - must be specified via CLI parameter --start-block
     inputs:
       - source: sf.ethereum.type.v2.Block
     output:
-      type: proto:dex.common.v1.TickerOutput
+      type: proto:evm.common.v1.BlockOutput
