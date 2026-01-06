@@ -5,7 +5,7 @@ package evm.common.v1;
 // All extracted blockchain data per block
 message BlockOutput {
   repeated PoolTicker tickers = 1;
-  repeated NewPool new_pools = 2;         // Reserved for future pool discovery
+  repeated NewPool new_pools = 2;         // V2 PairCreated and V3 PoolCreated events
   repeated SupplyDelta supply_deltas = 3;
 }
 
@@ -30,7 +30,7 @@ message PoolTicker {
   uint64 timestamp = 7;
 }
 
-// New pool creation event (reserved for future use)
+// New pool creation event from DEX factory contracts
 message NewPool {
   string pool_address = 1;
   string factory_address = 2;
