@@ -1,11 +1,11 @@
 specVersion: v0.1.0
 
 package:
-  name: coinranking_universal_dex
+  name: coinranking_evm
   version: v0.1.0
   url: https://github.com/coinranking/substreams
   image: assets/coinranking-logo.png
-  description: "Universal DEX substreams for Uniswap V2/V3, PancakeSwap V2/V3, SushiSwap and all compatible forks"
+  description: "EVM chain substreams for DEX activity and token supply tracking"
 
 protobuf:
   files:
@@ -16,7 +16,7 @@ protobuf:
 binaries:
   default:
     type: wasm/rust-v1
-    file: ../../target/wasm32-unknown-unknown/release/coinranking_universal_dex.wasm
+    file: ../../target/wasm32-unknown-unknown/release/coinranking_evm.wasm
 
 # Network can be specified at runtime via CLI parameters
 # Examples: mainnet, polygon, arbitrum-one, optimism, base, etc.

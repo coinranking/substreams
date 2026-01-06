@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "common",
-    "dexes/universal-dex",
+    "chains/evm",
 ]
 resolver = "2"
 

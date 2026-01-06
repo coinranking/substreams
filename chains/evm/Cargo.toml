@@ -1,5 +1,5 @@
 [package]
-name = "coinranking_universal_dex"
+name = "coinranking_evm"
 version = "0.1.0"
 edition = "2021"
 
