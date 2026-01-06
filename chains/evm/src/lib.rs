@@ -18,12 +18,13 @@
 
 mod common;
 mod pb;
+mod pools;
 mod supply;
 mod v2;
 mod v3;
 
 use crate::common::SwapAggregation;
-use crate::pb::evm::common::v1::{BlockOutput, PoolTicker, SupplyDelta};
+use crate::pb::evm::common::v1::{BlockOutput, NewPool, PoolTicker, SupplyDelta};
 use dex_common::{ensure_0x_prefix, format_bigint};
 use std::collections::HashMap;
 use substreams::Hex;
@@ -47,10 +48,19 @@ const PANCAKESWAP_V3_SWAP_EVENT_SIG: [u8; 32] =
 const TRANSFER_EVENT_SIG: [u8; 32] =
     hex_literal::hex!("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
 
+// Pool creation events
+// V2 PairCreated(address indexed token0, address indexed token1, address pair, uint)
+const V2_PAIR_CREATED_SIG: [u8; 32] =
+    hex_literal::hex!("0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9");
+// V3 PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)
+const V3_POOL_CREATED_SIG: [u8; 32] =
+    hex_literal::hex!("783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118");
+
 #[substreams::handlers::map]
 pub fn map_block_output(block: eth::Block) -> Result<BlockOutput, substreams::errors::Error> {
     let mut pool_aggregations: HashMap<Vec<u8>, SwapAggregation> = HashMap::new();
     let mut supply_deltas: Vec<SupplyDelta> = Vec::new();
+    let mut new_pools: Vec<NewPool> = Vec::new();
 
     let timestamp_seconds = block
         .header
@@ -97,6 +107,24 @@ pub fn map_block_output(block: eth::Block) -> Result<BlockOutput, substreams::er
                 }
             }
 
+            // V2 PairCreated events
+            topic if topic == V2_PAIR_CREATED_SIG => {
+                if let Some(pool) =
+                    pools::process_v2_pair_created(&log, block.number, timestamp_seconds)
+                {
+                    new_pools.push(pool);
+                }
+            }
+
+            // V3 PoolCreated events
+            topic if topic == V3_POOL_CREATED_SIG => {
+                if let Some(pool) =
+                    pools::process_v3_pool_created(&log, block.number, timestamp_seconds)
+                {
+                    new_pools.push(pool);
+                }
+            }
+
             _ => {}
         }
     }
@@ -120,7 +148,7 @@ pub fn map_block_output(block: eth::Block) -> Result<BlockOutput, substreams::er
 
     Ok(BlockOutput {
         tickers,
-        new_pools: vec![], // Reserved for future pool discovery
+        new_pools,
         supply_deltas,
     })
 }
