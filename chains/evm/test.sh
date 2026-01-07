@@ -5,8 +5,8 @@ set -e
 # Default values
 # Network-specific defaults (can be overridden with CLI args)
 # Use --start-block to specify the appropriate block for your target network
-START_BLOCK=10000835  # Default: Uniswap V2 deployment on Ethereum
-STOP_BLOCK=10000935   # 100 blocks after START_BLOCK
+START_BLOCK=21000000  # Default: Recent Ethereum block with DEX activity
+STOP_BLOCK=21000100   # 100 blocks after START_BLOCK
 OUTPUT_FORMAT="json"
 FILTER_OUTPUT=false
 TOKEN=""
@@ -96,7 +96,7 @@ ENDPOINT=${ENDPOINT:-"mainnet.eth.streamingfast.io:443"}
 CMD="substreams run -e $ENDPOINT"
 CMD="$CMD --header \"Authorization: Bearer $TOKEN\""
 CMD="$CMD substreams.yaml"
-CMD="$CMD map_v2_ticker_output"
+CMD="$CMD map_block_output"
 CMD="$CMD --start-block $START_BLOCK"
 CMD="$CMD --stop-block $STOP_BLOCK"
 CMD="$CMD --production-mode=false"
@@ -109,7 +109,7 @@ if [ "$FILTER_OUTPUT" = true ] && [ "$OUTPUT_FORMAT" = "json" ]; then
     # First run the command and save output
     OUTPUT=$(eval "$CMD" 2>&1)
     # Check if it's JSON and filter, otherwise show raw output
-    echo "$OUTPUT" | jq -r 'select(.data.map_v2_ticker_output != null) | .data.map_v2_ticker_output | if (.tickers | length) > 0 then . else empty end' 2>/dev/null || echo "$OUTPUT"
+    echo "$OUTPUT" | jq -r 'select(.data.map_block_output != null) | .data.map_block_output | if (.tickers | length) > 0 or (.supply_deltas | length) > 0 then . else empty end' 2>/dev/null || echo "$OUTPUT"
 else
     eval "$CMD"
 fi

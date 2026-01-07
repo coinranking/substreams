@@ -18,11 +18,13 @@
 
 mod common;
 mod pb;
+mod pools;
+mod supply;
 mod v2;
 mod v3;
 
 use crate::common::SwapAggregation;
-use crate::pb::dex::common::v1::{PoolTicker, TickerOutput};
+use crate::pb::evm::common::v1::{BlockOutput, NewPool, PoolTicker, SupplyDelta};
 use dex_common::{ensure_0x_prefix, format_bigint};
 use std::collections::HashMap;
 use substreams::Hex;
@@ -42,11 +44,37 @@ const UNISWAP_V3_SWAP_EVENT_SIG: [u8; 32] =
 const PANCAKESWAP_V3_SWAP_EVENT_SIG: [u8; 32] =
     hex_literal::hex!("19b47279256b2a23a1665c810c8d55a1758940ee09377d4f8d26497a3577dc83");
 
-#[substreams::handlers::map]
-pub fn map_dex_ticker_output(block: eth::Block) -> Result<TickerOutput, substreams::errors::Error> {
-    let mut pool_aggregations: HashMap<Vec<u8>, SwapAggregation> = HashMap::new();
+// ERC20 Transfer event: Transfer(address indexed from, address indexed to, uint256 value)
+const TRANSFER_EVENT_SIG: [u8; 32] =
+    hex_literal::hex!("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
 
-    // Process all DEX events
+// Pool creation events
+// V2 PairCreated(address indexed token0, address indexed token1, address pair, uint)
+const V2_PAIR_CREATED_SIG: [u8; 32] =
+    hex_literal::hex!("0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9");
+// V3 PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)
+const V3_POOL_CREATED_SIG: [u8; 32] =
+    hex_literal::hex!("783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118");
+
+#[substreams::handlers::map]
+pub fn map_block_output(block: eth::Block) -> Result<BlockOutput, substreams::errors::Error> {
+    let mut pool_aggregations: HashMap<Vec<u8>, SwapAggregation> = HashMap::new();
+    let mut supply_deltas: Vec<SupplyDelta> = Vec::new();
+    let mut new_pools: Vec<NewPool> = Vec::new();
+
+    let timestamp_seconds = block
+        .header
+        .as_ref()
+        .and_then(|header| header.timestamp.as_ref())
+        .map(|timestamp| timestamp.seconds as u64)
+        .ok_or_else(|| {
+            substreams::errors::Error::msg(format!(
+                "Block {} missing header or timestamp",
+                block.number
+            ))
+        })?;
+
+    // Process all events
     for log in block.logs() {
         // Early exit if no topics
         if log.topics().is_empty() {
@@ -70,21 +98,36 @@ pub fn map_dex_ticker_output(block: eth::Block) -> Result<TickerOutput, substrea
                 v3::process_swap_event(&log, &mut pool_aggregations)
             }
 
+            // ERC20 Transfer events (for mint/burn tracking)
+            topic if topic == TRANSFER_EVENT_SIG => {
+                if let Some(delta) =
+                    supply::process_transfer_event(&log, block.number, timestamp_seconds)
+                {
+                    supply_deltas.push(delta);
+                }
+            }
+
+            // V2 PairCreated events
+            topic if topic == V2_PAIR_CREATED_SIG => {
+                if let Some(pool) =
+                    pools::process_v2_pair_created(&log, block.number, timestamp_seconds)
+                {
+                    new_pools.push(pool);
+                }
+            }
+
+            // V3 PoolCreated events
+            topic if topic == V3_POOL_CREATED_SIG => {
+                if let Some(pool) =
+                    pools::process_v3_pool_created(&log, block.number, timestamp_seconds)
+                {
+                    new_pools.push(pool);
+                }
+            }
+
             _ => {}
         }
     }
-
-    let timestamp_seconds = block
-        .header
-        .as_ref()
-        .and_then(|header| header.timestamp.as_ref())
-        .map(|timestamp| timestamp.seconds as u64)
-        .ok_or_else(|| {
-            substreams::errors::Error::msg(format!(
-                "Block {} missing header or timestamp",
-                block.number
-            ))
-        })?;
 
     // Create output with ticker data
     let mut tickers = vec![];
@@ -103,5 +146,9 @@ pub fn map_dex_ticker_output(block: eth::Block) -> Result<TickerOutput, substrea
         });
     }
 
-    Ok(TickerOutput { tickers })
+    Ok(BlockOutput {
+        tickers,
+        new_pools,
+        supply_deltas,
+    })
 }
