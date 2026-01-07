@@ -5,8 +5,8 @@ set -e
 # Default values
 # Network-specific defaults (can be overridden with CLI args)
 # Use --start-block to specify the appropriate block for your target network
-START_BLOCK=10000835  # Default: Uniswap V2 deployment on Ethereum
-STOP_BLOCK=10000935   # 100 blocks after START_BLOCK
+START_BLOCK=21000000  # Default: Recent Ethereum block with DEX activity
+STOP_BLOCK=21000100   # 100 blocks after START_BLOCK
 OUTPUT_FORMAT="json"
 FILTER_OUTPUT=false
 TOKEN=""
