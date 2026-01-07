@@ -2,7 +2,7 @@ specVersion: v0.1.0
 
 package:
   name: coinranking_evm
-  version: v0.1.0
+  version: v0.2.0
   url: https://github.com/coinranking/substreams
   image: assets/coinranking-logo.png
   description: "EVM chain substreams for DEX activity and token supply tracking"
